@@ -21,7 +21,7 @@ private object VectorDecoder extends Decoder {
     ctx: DecoderContext
   ): DecoderContext = ctx match {
     case vectorCtx: VectorDecoderContext =>
-      decodeRecursive(vectorCtx, chunk)
+      decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
     case _ => ErrorDecoderContext(
       "This Decoder implementation does not work with this type of DecoderContext."
     )
@@ -29,274 +29,263 @@ private object VectorDecoder extends Decoder {
 
   @tailrec
   private def decodeRecursive(
-    ctx: VectorDecoderContext,
-    input: Chunk[Byte] = Chunk.empty
-  ): VectorDecoderContext = ctx.error match {
-    case Some(_: Error.IncompleteInput) if input.isEmpty => ctx
-    case _ =>
-      val newBytes = ctx.bytes ++ input.toVector
-      val firstByte = newBytes.headOption
-      if (firstByte.isEmpty)
-        ctx.copy(bytes = newBytes)
-      else if ((firstByte.get & 0x80) != 0x00)
-        decodeRecursive(
-          indexedHeader(
-            ctx,
-            0x7F,
-            newBytes,
-            0
-          )
+    ctx: VectorDecoderContext
+  ): VectorDecoderContext = {
+    val headOpt = ctx.bytes.lift(ctx.offset)
+    val newCtxOpt =
+      if (headOpt.isEmpty)
+        None
+      else if ((headOpt.get & 0x80) != 0x00)
+        indexedHeader(
+          ctx,
+          0x7F
         )
-      else if (firstByte.get == 0x40)
-        decodeRecursive(
-          literalHeaderNewName(
-            ctx,
-            0x7F,
-            newBytes,
-            1,
-            Indexing.With
-          )
+      else if (headOpt.get == 0x40)
+        literalHeaderNewName(
+          ctx.copy(offset = ctx.offset + 1),
+          0x7F,
+          Indexing.With
         )
-      else if ((firstByte.get & 0xC0) == 0x40)
-        decodeRecursive(
-          literalHeaderIndexedName(
-            ctx,
-            0x3F,
-            newBytes,
-            0,
-            Indexing.With
-          )
+      else if ((headOpt.get & 0xC0) == 0x40)
+        literalHeaderIndexedName(
+          ctx,
+          0x3F,
+          Indexing.With
         )
-      else if (firstByte.get == 0x00)
-        decodeRecursive(
-          literalHeaderNewName(
-            ctx,
-            0x7F,
-            newBytes,
-            1,
-            Indexing.Without
-          )
+      else if (headOpt.get == 0x00)
+        literalHeaderNewName(
+          ctx.copy(offset = ctx.offset + 1),
+          0x7F,
+          Indexing.Without
         )
-      else if ((firstByte.get & 0xF0) == 0x00)
-        decodeRecursive(
-          literalHeaderIndexedName(
-            ctx,
-            0x0F,
-            newBytes,
-            0,
-            Indexing.Without
-          )
+      else if ((headOpt.get & 0xF0) == 0x00)
+        literalHeaderIndexedName(
+          ctx,
+          0x0F,
+          Indexing.Without
         )
-      else if (firstByte.get == 0x10)
-        decodeRecursive(
-          literalHeaderNewName(
-            ctx,
-            0x7F,
-            newBytes,
-            1,
-            Indexing.Never
-          )
+      else if (headOpt.get == 0x10)
+        literalHeaderNewName(
+          ctx.copy(offset = ctx.offset + 1),
+          0x7F,
+          Indexing.Never
         )
-      else if ((firstByte.get & 0xF0) == 0x10)
-        decodeRecursive(
-          literalHeaderIndexedName(
-            ctx,
-            0x0F,
-            newBytes,
-            0,
-            Indexing.Never
-          )
+      else if ((headOpt.get & 0xF0) == 0x10)
+        literalHeaderIndexedName(
+          ctx,
+          0x0F,
+          Indexing.Never
         )
-      else if ((firstByte.get & 0xE0) != 0x00)
-        decodeRecursive(resizeTable(ctx, 0x1F, newBytes, 0))
+      else if ((headOpt.get & 0xE0) != 0x00)
+        resizeTable(ctx, 0x1F)
       else {
         val error = Error.InvalidInput(
           "Could not parse header block.",
-          0,
+          ctx.offset,
           Expectation.FirstHeaderByte,
-          firstByte.get
+          headOpt.get
         )
-        ctx.copy(error = Some(error))
+        Some(ctx.copy(error = Some(error)))
       }
+    newCtxOpt match {
+      case Some(newCtx) if newCtx.error.isEmpty => decodeRecursive(newCtx)
+      case Some(newCtx) => newCtx   // Parse error
+      case None => ctx              // Not enough input to parse one header
+    }
   }
 
-/** See section 6.1. */
+  /** See RFC 7541 section 6.1. */
   private def indexedHeader(
     ctx: VectorDecoderContext,
-    mask: Byte,
-    bytes: Vector[Byte],
-    offset: Int
-  ): VectorDecoderContext =
-    decodeInt(mask, bytes, offset) match {
+    mask: Byte
+  ): Option[VectorDecoderContext] =
+    decodeInt(mask, ctx.bytes, ctx.offset) match {
       case Right((idx, afterSize)) =>
         ctx.table.lookup(idx) match {
-          case Some(headerField) => ctx.copy(
-            headers = headerField :: ctx.headers,
-            bytes = bytes.drop(afterSize)
+          case Some(headerField) => Some(
+            ctx.copy(
+              headers = headerField :: ctx.headers,
+              bytes = ctx.bytes.drop(afterSize),
+              offset = 0
+            )
           )
           case None =>
             val maxIdx = StaticTable.numEntries + ctx.table.numEntries
-            ctx.copy(
-              error = Some(
-                Error.InvalidInput(
-                  s"Invalid header index $idx is not between 1 and $maxIdx.",
-                  afterSize,
-                  Expectation.HeaderIndex,
-                  bytes(offset)
+            Some(
+              ctx.copy(
+                error = Some(
+                  Error.InvalidInput(
+                    s"Invalid header index $idx is not between 1 and $maxIdx.",
+                    afterSize,
+                    Expectation.HeaderIndex,
+                    ctx.bytes(ctx.offset)
+                  )
                 )
               )
             )
         }
-      case Left(err: Error.InvalidInput) => ctx.copy(
-        error = Some(
-          Error.InvalidInput(
-            "Cannot decode header index",
-            offset,
-            Expectation.HeaderIndex,
-            bytes(offset),
-            Some(err)
+      case Left(err: Error.InvalidInput) => Some(
+        ctx.copy(
+          error = Some(
+            Error.InvalidInput(
+              "Cannot decode header index",
+              ctx.offset,
+              Expectation.HeaderIndex,
+              ctx.bytes(ctx.offset),
+              Some(err)
+            )
           )
         )
       )
-      case Left(err) => ctx.copy(error = Some(err))
+      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: Error.IncompleteInput) => None
     }
 
   private def literalHeaderNewName(
     ctx: VectorDecoderContext,
     mask: Byte,
-    bytes: Vector[Byte],
-    offset: Int,
     indexing: Indexing
-  ): VectorDecoderContext =
-    decodeInt(mask, bytes, offset) match {
+  ): Option[VectorDecoderContext] =
+    decodeInt(mask, ctx.bytes, ctx.offset) match {
       case Right((nameLength, afterNameLength)) =>
-        //Console.err.println(s"nameLength $nameLength")
-        decodeString(nameLength, bytes, afterNameLength) match {
+        Console.err.println(s"nameLength $nameLength")
+        decodeString(nameLength, ctx.bytes, afterNameLength) match {
           case Right((name, afterName)) =>
-            //Console.err.println(s"name ${new String(name.toArray)}")
-            decodeInt(0x7F, bytes, afterName) match {
+            Console.err.println(s"name ${new String(name.toArray)}")
+            decodeInt(0x7F, ctx.bytes, afterName) match {
               case Right((valueLength, afterValueLength)) =>
-                decodeString(valueLength, bytes, afterValueLength) match {
+                Console.err.println(s"valueLength $valueLength")
+                decodeString(valueLength, ctx.bytes, afterValueLength) match {
                   case Right((value, afterValue)) =>
-                    //Console.err.println(s"valueLength $valueLength")
+                    Console.err.println(s"value ${new String(value.toArray)}")
                     val headerField = HeaderField(name, value, indexing)
-                    ctx.copy(
-                      bytes = bytes.drop(afterValue),
-                      headers = headerField :: ctx.headers
+                    Some(
+                      ctx.copy(
+                        headers = headerField :: ctx.headers,
+                        bytes = ctx.bytes.drop(afterValue),
+                        offset = 0
+                      )
                     )
-                  case Left(err: Error.InvalidInput) => ctx.copy(
-                    bytes = bytes,
-                    error = Some(
-                      Error.InvalidInput(
-                        "Cannot decode header value starting with " +
-                          bytes(afterValueLength) + ".",
-                        afterValueLength,
-                        Expectation.HeaderValue,
-                        bytes(afterValueLength),
-                        Some(err)
+                  case Left(err: Error.InvalidInput) => Console.err.println(s"value error $err");Some(
+                    ctx.copy(
+                      error = Some(
+                        Error.InvalidInput(
+                          "Cannot decode header value starting with " +
+                            ctx.bytes(afterValueLength) + ".",
+                          afterValueLength,
+                          Expectation.HeaderValue,
+                          ctx.bytes(afterValueLength),
+                          Some(err)
+                        )
                       )
                     )
                   )
-                  case Left(err) => ctx.copy(
-                    bytes = bytes,
-                    error = Some(err)
+                  case Left(err: Error.Implementation) => Some(
+                    ctx.copy(
+                      error = Some(err)
+                    )
                   )
+                  case Left(_: Error.IncompleteInput) => None
                 }
-              case Left(err: Error.InvalidInput) => ctx.copy(
-                bytes = bytes,
-                error = Some(
-                  Error.InvalidInput(
-                    "Cannot decode header value length starting with " +
-                      bytes(afterName) + ".",
-                    afterName,
-                    Expectation.NonZeroLength,
-                    bytes(afterName),
-                    Some(err)
+              case Left(err: Error.InvalidInput) => Console.err.println(s"valueLength error $err");Some(
+                ctx.copy(
+                  error = Some(
+                    Error.InvalidInput(
+                      "Cannot decode header value length starting with " +
+                        ctx.bytes(afterName) + ".",
+                      afterName,
+                      Expectation.NonZeroLength,
+                      ctx.bytes(afterName),
+                      Some(err)
+                    )
                   )
                 )
               )
-              case Left(err) => ctx.copy(
-                bytes = bytes,
-                error = Some(err)
+              case Left(err: Error.Implementation) => Some(
+                ctx.copy(
+                  error = Some(err)
+                )
               )
+              case Left(_: Error.IncompleteInput) => None
             }
-          case Left(err: Error.InvalidInput) => ctx.copy(
-            bytes = bytes,
-            error = Some(
-              Error.InvalidInput(
-                "Cannot decode header name name starting with " +
-                  bytes(afterNameLength) + ".",
-                afterNameLength,
-                Expectation.HeaderName,
-                bytes(afterNameLength),
-                Some(err)
+          case Left(err: Error.InvalidInput) => Console.err.println(s"name error $err");Some(
+            ctx.copy(
+              error = Some(
+                Error.InvalidInput(
+                  "Cannot decode header name starting with " +
+                    ctx.bytes(afterNameLength) + ".",
+                  afterNameLength,
+                  Expectation.HeaderName,
+                  ctx.bytes(afterNameLength),
+                  Some(err)
+                )
               )
             )
           )
-          case Left(err) => ctx.copy(
-            bytes = bytes,
-            error = Some(err)
+          case Left(err: Error.Implementation) => Some(
+            ctx.copy(
+              error = Some(err)
+            )
           )
+          case Left(_: Error.IncompleteInput) => None
         }
-      case Left(err: Error.InvalidInput) => ctx.copy(
-        bytes = bytes,
-        error = Some(
-          Error.InvalidInput(
-            "Cannot decode header name length parameter starting with " +
-              bytes(offset) + ".",
-            offset,
-            Expectation.NonZeroLength,
-            bytes(offset),
-            Some(err)
+      case Left(err: Error.InvalidInput) => Console.err.println(s"name length error $err");Some(
+        ctx.copy(
+          error = Some(
+            Error.InvalidInput(
+              "Cannot decode header name length parameter starting with " +
+                ctx.bytes(ctx.offset) + ".",
+              ctx.offset,
+              Expectation.NonZeroLength,
+              ctx.bytes(ctx.offset),
+              Some(err)
+            )
           )
         )
       )
-      case Left(err) => ctx.copy(
-        bytes = bytes,
-        error = Some(err)
-      )
+      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: Error.IncompleteInput) => None
   }
 
   private def literalHeaderIndexedName(
     ctx: VectorDecoderContext,
     mask: Byte,
-    bytes: Vector[Byte],
-    offset: Int,
     indexing: Indexing
-  ): VectorDecoderContext = {
+  ): Option[VectorDecoderContext] = {
     ???
   }
 
   private def resizeTable(
     ctx: VectorDecoderContext,
-    mask: Byte,
-    bytes: Vector[Byte],
-    offset: Int
-  ): VectorDecoderContext =
-    decodeInt(mask, bytes, offset) match {
-      case Right((newSize, newOffset)) => ctx.copy(
-        table = ctx.table.resize(newSize),
-        bytes = bytes.drop(newOffset)
+    mask: Byte
+  ): Option[VectorDecoderContext] =
+    decodeInt(mask, ctx.bytes, ctx.offset) match {
+      case Right((newSize, newOffset)) => Some(
+        ctx.copy(
+          table = ctx.table.resize(newSize),
+          bytes = ctx.bytes.drop(newOffset),
+          offset = 0
+        )
       )
-      case Left(err: Error.InvalidInput) => ctx.copy(
-        bytes = bytes,
-        error = Some(
-          Error.InvalidInput(
-            s"Cannot decode table size parameter starting with ${bytes(offset)}.",
-            offset,
-            Expectation.NonZeroLength,
-            bytes(offset),
-            Some(err)
+      case Left(err: Error.InvalidInput) => Some(
+        ctx.copy(
+          error = Some(
+            Error.InvalidInput(
+              "Cannot decode table size parameter starting with " +
+                ctx.bytes(ctx.offset) + ".",
+              ctx.offset,
+              Expectation.NonZeroLength,
+              ctx.bytes(ctx.offset),
+              Some(err)
+            )
           )
         )
       )
-      case Left(err) => ctx.copy(
-        bytes = bytes,
-        error = Some(err)
-      )
+      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: Error.IncompleteInput) => None
     }
 
-  /** See section 5.1. */
+  /** See RFC 7541 section 5.1. */
   private[hpack] def decodeInt(
     mask: Byte,
     bytes: Vector[Byte],
@@ -319,8 +308,10 @@ private object VectorDecoder extends Decoder {
     offset: Int,
     m: Int
   ): Either[Error, (Int, Int)] =
-    if (!bytes.isDefinedAt(offset))
+    if (!bytes.isDefinedAt(offset)) {
+      Console.err.println(s"decodeIntRecursive($value, $bytes, $offset, $m)")
       Left(Error.IncompleteInput(offset))
+    }
     else if (m > 21)
       Left(Error.Implementation("Cannot handle a header size this big."))
     else {
@@ -332,14 +323,16 @@ private object VectorDecoder extends Decoder {
         decodeIntRecursive(i, bytes, offset + 1, m + 7)
     }
 
-  /** See section 5.2. */
+  /** See RFC 7541 section 5.2. */
   private[hpack] def decodeString(
     length: Int,
     bytes: Vector[Byte],
     offset: Int
-  ): Either[Error, (Chunk[Byte], Int)] =
-    if (offset + length < bytes.size)
+  ): Either[Error, (Chunk[Byte], Int)] = {
+    Console.err.println(s"decodeString($length, $bytes, $offset)")
+    if (offset + length <= bytes.size)
       Right((Chunk.fromIterable(bytes.drop(offset).take(length)), offset + length))
     else
       Left(Error.IncompleteInput(offset))
+  }
 }

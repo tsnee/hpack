@@ -14,6 +14,7 @@ object DecoderContext {
 private[hpack] case class VectorDecoderContext(
   table: DynamicTable,
   bytes: Vector[Byte] = Vector.empty,
+  offset: Int = 0,
   headers: List[HeaderField] = Nil,
   error: Option[Error] = None
 ) extends DecoderContext {
