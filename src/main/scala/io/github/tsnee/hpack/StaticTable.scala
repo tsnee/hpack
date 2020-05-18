@@ -1,9 +1,7 @@
 package io.github.tsnee.hpack
 
-import scala.collection.immutable.Queue
-
 private[hpack] object StaticTable extends IndexTable(
-  Queue(
+  Vector(
     // From RCF 7541 Appendix A
     HeaderField(":authority", ""),
     HeaderField(":method", "GET"),

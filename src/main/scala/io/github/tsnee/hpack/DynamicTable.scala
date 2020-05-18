@@ -1,11 +1,10 @@
 package io.github.tsnee.hpack
 
 import scala.annotation.tailrec
-import scala.collection.immutable.Queue
 
 private[hpack] class DynamicTable private (
   val maxSize: Int,
-  backingStore: Queue[HeaderField],
+  backingStore: Vector[HeaderField],
   val size: Int
 ) extends IndexTable(backingStore) {
 
@@ -16,32 +15,33 @@ private[hpack] class DynamicTable private (
     if (adjustedIdx < 1)
       StaticTable.lookup(idx)
     else
-      backingStore.reverse.lift(adjustedIdx - 1)
+      backingStore.lift(adjustedIdx - 1)
   }
 
   def store(headerField: HeaderField, indexing: Indexing): DynamicTable =
     indexing match {
       case Indexing.With =>
-        shrink(maxSize, backingStore.enqueue(headerField), size + headerField.size)
+        shrink(maxSize, backingStore.prepended(headerField), size + headerField.size)
       case _ => this
     }
 
   def resize(newMaxSize: Int): DynamicTable = {
     require(newMaxSize >= 0)
     if (newMaxSize == 0)
-      new DynamicTable(newMaxSize, Queue.empty, 0)
+      new DynamicTable(newMaxSize, Vector.empty, 0)
     else
       shrink(newMaxSize, backingStore, size)
   }
 
   @tailrec
-  private def shrink(newMaxSize: Int, q: Queue[HeaderField], qSize: Int): DynamicTable = {
-    assert(newMaxSize >= 0 && qSize >= 0)
-    if (qSize <= newMaxSize)
-      new DynamicTable(newMaxSize, q, qSize)
+  private def shrink(newMaxSize: Int, fields: Vector[HeaderField], size: Int): DynamicTable = {
+    assert(newMaxSize >= 0 && size >= 0)
+    if (size <= newMaxSize)
+      new DynamicTable(newMaxSize, fields, size)
     else {
-      val (headerField, smallerQ) = q.dequeue
-      shrink(newMaxSize, smallerQ, qSize - headerField.size)
+      val headerField = fields.last
+      val smaller = fields.init
+      shrink(newMaxSize, smaller, size - headerField.size)
     }
   }
 
@@ -54,6 +54,6 @@ private[hpack] class DynamicTable private (
 object DynamicTable {
   def apply(maxSize: Int): DynamicTable = {
     require(maxSize >= 0)
-    new DynamicTable(maxSize, Queue.empty, 0)
+    new DynamicTable(maxSize, Vector.empty, 0)
   }
 }
