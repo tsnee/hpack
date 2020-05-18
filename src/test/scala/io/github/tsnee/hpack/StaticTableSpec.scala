@@ -16,11 +16,11 @@ object StaticTableSpec extends DefaultRunnableSpec {
     },
     test("lookup(1) on static returns Some") {
       val actual = StaticTable.lookup(1)
-      assert(actual)(equalTo(Some(HeaderField(":authority", ""))))
+      assert(actual)(equalTo(Some(HeaderField(":authority", "", Indexing.Without))))
     },
     test("lookup(2) on static table returns Some") {
       val actual = StaticTable.lookup(2)
-      assert(actual)(equalTo(Some(HeaderField(":method", "GET"))))
+      assert(actual)(equalTo(Some(HeaderField(":method", "GET", Indexing.Without))))
     },
     test("lookup(62) on static table returns None") {
       val actual = StaticTable.lookup(62)

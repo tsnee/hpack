@@ -69,7 +69,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       )
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
-      val expected = List(HeaderField("password", "secret", Indexing.Never))
+      val expected = List(HeaderField(":path", "/sample/path", Indexing.Without))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.3") {
@@ -81,6 +81,88 @@ object DecoderSpec extends DefaultRunnableSpec {
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
       val expected =
         List(HeaderField("password", "secret", Indexing.Never))
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.2.4") {
+      val chunk: Chunk[Byte] = Chunk(0x82)
+      val actual =
+        Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
+      val expected =
+        List(HeaderField(":method", "GET", Indexing.Without))
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.3.1") {
+      val chunk: Chunk[Byte] = Chunk(
+        0x82, 0x86, 0x84, 0x41, 0x0F, 0x77, 0x77, 0x77, 0x2E, 0x65, 0x78,
+        0x61, 0x6D, 0x70, 0x6C, 0x65, 0x2E, 0x63, 0x6F, 0x6D
+      )
+      val actual =
+        Decoder.default.decode(chunk, DecoderContext.default(57)).headerList
+      val expected = List(
+        HeaderField(":method", "GET", Indexing.Without),
+        HeaderField(":scheme", "http", Indexing.Without),
+        HeaderField(":path", "/", Indexing.Without),
+        HeaderField(":authority", "www.example.com", Indexing.With)
+      )
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.3.2") {
+      val first: Chunk[Byte] = Chunk(
+        0x82, 0x86, 0x84, 0x41, 0x0F, 0x77, 0x77, 0x77, 0x2E, 0x65, 0x78,
+        0x61, 0x6D, 0x70, 0x6C, 0x65, 0x2E, 0x63, 0x6F, 0x6D
+      )
+      val second: Chunk[Byte] = Chunk(
+        0x82, 0x86, 0x84, 0xBE, 0x58, 0x08, 0x6E, 0x6F, 0x2D, 0x63, 0x61,
+        0x63, 0x68, 0x65
+      )
+      val intermediateCtx =
+        Decoder.default.decode(first, DecoderContext.default(110)).flush
+      val actual =
+        Decoder.default.decode(second, intermediateCtx).headerList
+      Console.err.println(actual.map {
+        case HeaderField(name, value, indexing) =>
+          new String(name.toArray) + " " + new String(value.toArray)
+      }.mkString("\n"))
+      val expected = List(
+        HeaderField(":method", "GET", Indexing.Without),
+        HeaderField(":scheme", "http", Indexing.Without),
+        HeaderField(":path", "/", Indexing.Without),
+        HeaderField(":authority", "www.example.com", Indexing.With),
+        HeaderField("cache-control", "no-cache", Indexing.With)
+      )
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.3.3") {
+      val first: Chunk[Byte] = Chunk(
+        0x82, 0x86, 0x84, 0x41, 0x0F, 0x77, 0x77, 0x77, 0x2E, 0x65, 0x78,
+        0x61, 0x6D, 0x70, 0x6C, 0x65, 0x2E, 0x63, 0x6F, 0x6D
+      )
+      val second: Chunk[Byte] = Chunk(
+        0x82, 0x86, 0x84, 0xBE, 0x58, 0x08, 0x6E, 0x6F, 0x2D, 0x63, 0x61,
+        0x63, 0x68, 0x65
+      )
+      val third: Chunk[Byte] = Chunk(
+        0x82, 0x87, 0x85, 0xBF, 0x40, 0x0A, 0x63, 0x75, 0x73, 0x74, 0x6F,
+        0x6D, 0x2D, 0x6B, 0x65, 0x79, 0x0C, 0x63, 0x75, 0x73, 0x74, 0x6F,
+        0x6D, 0x2D, 0x76, 0x61, 0x6C, 0x75, 0x65
+      )
+      val afterFirstCtx =
+        Decoder.default.decode(first, DecoderContext.default(164)).flush
+      val afterSecondCtx =
+        Decoder.default.decode(second, afterFirstCtx).flush
+      val actual =
+        Decoder.default.decode(third, afterSecondCtx).headerList
+      Console.err.println(actual.map {
+        case HeaderField(name, value, indexing) =>
+          new String(name.toArray) + " " + new String(value.toArray)
+      }.mkString("\n"))
+      val expected = List(
+        HeaderField(":method", "GET", Indexing.Without),
+        HeaderField(":scheme", "https", Indexing.Without),
+        HeaderField(":path", "/index.html", Indexing.Without),
+        HeaderField(":authority", "www.example.com", Indexing.With),
+        HeaderField("custom-key", "custom-value", Indexing.With)
+      )
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds)
   )

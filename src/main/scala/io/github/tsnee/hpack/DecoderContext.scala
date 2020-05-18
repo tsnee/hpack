@@ -4,6 +4,7 @@ package io.github.tsnee.hpack
 trait DecoderContext {
   val headerList: Seq[HeaderField]
   val error: Option[Error]
+  def flush: DecoderContext
 }
 
 object DecoderContext {
@@ -19,6 +20,7 @@ private[hpack] case class VectorDecoderContext(
   error: Option[Error] = None
 ) extends DecoderContext {
   override lazy val headerList: Seq[HeaderField] = headers.reverse
+  override lazy val flush: DecoderContext = VectorDecoderContext(table)
 }
 
 private[hpack] class ErrorDecoderContext(
@@ -26,6 +28,7 @@ private[hpack] class ErrorDecoderContext(
 ) extends DecoderContext {
   override val headerList = Seq.empty
   override val error = Some(err)
+  override lazy val flush: DecoderContext = this
 }
 
 object ErrorDecoderContext {

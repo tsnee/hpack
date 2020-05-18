@@ -44,6 +44,11 @@ private[hpack] class DynamicTable private (
       shrink(newMaxSize, smallerQ, qSize - headerField.size)
     }
   }
+
+  override lazy val toString: String =
+    s"""Current size: $size
+       |Max size: $maxSize
+       |Table: """.stripMargin + backingStore.mkString("\t", "\n\t", "")
 }
 
 object DynamicTable {

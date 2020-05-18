@@ -17,6 +17,9 @@ case class HeaderField(
 ) {
   val overhead: Int = 32
   lazy val size: Int = name.size + value.size + overhead
+  override lazy val toString: String =
+    new String(name.toArray) + ": " + new String(value.toArray) + " [" +
+      indexing + "]"
 }
 
 object HeaderField {
