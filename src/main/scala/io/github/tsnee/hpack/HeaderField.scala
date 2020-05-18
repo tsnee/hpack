@@ -3,32 +3,22 @@ package io.github.tsnee.hpack
 import scala.io.Codec
 import zio.Chunk
 
-sealed trait Indexing
-object Indexing {
-  case object With extends Indexing
-  case object Without extends Indexing
-  case object Never extends Indexing
-}
-
 case class HeaderField(
   name: Chunk[Byte],
-  value: Chunk[Byte],
-  indexing: Indexing
+  value: Chunk[Byte]
 ) {
   val overhead: Int = 32
   lazy val size: Int = name.size + value.size + overhead
   override lazy val toString: String =
-    new String(name.toArray) + ": " + new String(value.toArray) + " [" +
-      indexing + "]"
+    new String(name.toArray) + ": " + new String(value.toArray)
 }
 
 object HeaderField {
   def apply(
     name: String,
-    value: String,
-    indexing: Indexing = Indexing.With
+    value: String
   ): HeaderField =
-    new HeaderField(fromString(name), fromString(value), indexing)
+    new HeaderField(fromString(name), fromString(value))
 
   private def fromString(s: String): Chunk[Byte] =
     Chunk.fromArray(s.getBytes(Codec.UTF8.charSet))

@@ -11,6 +11,7 @@ object DecoderSpec extends DefaultRunnableSpec {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
   override def spec = suite("DecoderSpec")(
+    /*
     test("decoding an empty header block yields an empty HeaderList") {
       val emptyCtx = DecoderContext.default(1024)
       val newCtx = VectorDecoder.decode(Chunk(), emptyCtx)
@@ -43,7 +44,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
       val expected =
-        List(HeaderField("custom-key", "custom-header", Indexing.With))
+        List(HeaderField("custom-key", "custom-header"))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.1 in two chunks") {
@@ -59,7 +60,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(second, intermediateCtx).headerList
       val expected =
-        List(HeaderField("custom-key", "custom-header", Indexing.With))
+        List(HeaderField("custom-key", "custom-header"))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.2") {
@@ -69,7 +70,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       )
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
-      val expected = List(HeaderField(":path", "/sample/path", Indexing.Without))
+      val expected = List(HeaderField(":path", "/sample/path"))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.3") {
@@ -80,7 +81,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
       val expected =
-        List(HeaderField("password", "secret", Indexing.Never))
+        List(HeaderField("password", "secret"))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.4") {
@@ -88,7 +89,7 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(1024)).headerList
       val expected =
-        List(HeaderField(":method", "GET", Indexing.Without))
+        List(HeaderField(":method", "GET"))
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.3.1") {
@@ -99,10 +100,10 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(chunk, DecoderContext.default(57)).headerList
       val expected = List(
-        HeaderField(":method", "GET", Indexing.Without),
-        HeaderField(":scheme", "http", Indexing.Without),
-        HeaderField(":path", "/", Indexing.Without),
-        HeaderField(":authority", "www.example.com", Indexing.With)
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "http"),
+        HeaderField(":path", "/"),
+        HeaderField(":authority", "www.example.com")
       )
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
@@ -119,19 +120,16 @@ object DecoderSpec extends DefaultRunnableSpec {
         Decoder.default.decode(first, DecoderContext.default(110)).flush
       val actual =
         Decoder.default.decode(second, intermediateCtx).headerList
-      Console.err.println(actual.map {
-        case HeaderField(name, value, indexing) =>
-          new String(name.toArray) + " " + new String(value.toArray)
-      }.mkString("\n"))
       val expected = List(
-        HeaderField(":method", "GET", Indexing.Without),
-        HeaderField(":scheme", "http", Indexing.Without),
-        HeaderField(":path", "/", Indexing.Without),
-        HeaderField(":authority", "www.example.com", Indexing.With),
-        HeaderField("cache-control", "no-cache", Indexing.With)
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "http"),
+        HeaderField(":path", "/"),
+        HeaderField(":authority", "www.example.com"),
+        HeaderField("cache-control", "no-cache")
       )
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds),
+    */
     test("RFC 7541 Appendix C.3.3") {
       val first: Chunk[Byte] = Chunk(
         0x82, 0x86, 0x84, 0x41, 0x0F, 0x77, 0x77, 0x77, 0x2E, 0x65, 0x78,
@@ -153,15 +151,15 @@ object DecoderSpec extends DefaultRunnableSpec {
       val actual =
         Decoder.default.decode(third, afterSecondCtx).headerList
       Console.err.println(actual.map {
-        case HeaderField(name, value, indexing) =>
+        case HeaderField(name, value) =>
           new String(name.toArray) + " " + new String(value.toArray)
       }.mkString("\n"))
       val expected = List(
-        HeaderField(":method", "GET", Indexing.Without),
-        HeaderField(":scheme", "https", Indexing.Without),
-        HeaderField(":path", "/index.html", Indexing.Without),
-        HeaderField(":authority", "www.example.com", Indexing.With),
-        HeaderField("custom-key", "custom-value", Indexing.With)
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "https"),
+        HeaderField(":path", "/index.html"),
+        HeaderField(":authority", "www.example.com"),
+        HeaderField("custom-key", "custom-value")
       )
       assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds)

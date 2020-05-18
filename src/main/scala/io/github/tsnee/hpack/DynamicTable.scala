@@ -16,11 +16,11 @@ private[hpack] class DynamicTable private (
     if (adjustedIdx < 1)
       StaticTable.lookup(idx)
     else
-      backingStore.lift(adjustedIdx - 1)
+      backingStore.reverse.lift(adjustedIdx - 1)
   }
 
-  def store(headerField: HeaderField): DynamicTable =
-    headerField.indexing match {
+  def store(headerField: HeaderField, indexing: Indexing): DynamicTable =
+    indexing match {
       case Indexing.With =>
         shrink(maxSize, backingStore.enqueue(headerField), size + headerField.size)
       case _ => this

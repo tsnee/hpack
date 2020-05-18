@@ -112,8 +112,7 @@ private object VectorDecoder extends Decoder {
             ctx.copy(
               headers = headerField :: ctx.headers,
               bytes = ctx.bytes.drop(afterIdx),
-              offset = 0,
-              table = ctx.table.store(headerField)
+              offset = 0
             )
           )
           case None => tableLookupFailure(ctx, idx)
@@ -176,13 +175,13 @@ private object VectorDecoder extends Decoder {
     decodeString(0x7F, ctx) match {
       case Right((value, afterValue)) =>
         Console.err.println(s"name ${new String(name.toArray)} value ${new String(value.toArray)} indexing $indexing")
-        val headerField = HeaderField(name, value, indexing)
+        val headerField = HeaderField(name, value)
         Some(
           ctx.copy(
             headers = headerField :: ctx.headers,
             bytes = ctx.bytes.drop(afterValue),
             offset = 0,
-            table = ctx.table.store(headerField)
+            table = ctx.table.store(headerField, indexing)
           )
         )
       case Left(err: Error.InvalidInput) => Console.err.println(s"value error $err");Some(
@@ -215,7 +214,7 @@ private object VectorDecoder extends Decoder {
     decodeInt(mask, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
-          case Some(HeaderField(name, _, _)) =>
+          case Some(HeaderField(name, _)) =>
             Console.err.println(s"Looked up ${new String(name.toArray)}")
             decodeValue(name, ctx.copy(offset = afterIdx), indexing)
           case None => tableLookupFailure(ctx, idx)
