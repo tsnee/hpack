@@ -1,0 +1,25 @@
+[info] Benchmark                                                                Mode  Cnt         Score        Error  Units
+[info] HpackChunkBenchmark.decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList   thrpt   25  38475657.534 ± 382167.895  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_1_1                                thrpt   25  39150494.139 ± 160874.168  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_1_2                                thrpt   25  10343659.820 ±  65490.325  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_1_3                                thrpt   25  38880385.441 ± 375381.511  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_2_1_in_one_chunk                   thrpt   25   1969717.103 ±  12662.375  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_2_1_in_two_chunks                  thrpt   25   1354661.057 ±  10870.864  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_2_2                                thrpt   25   2827443.741 ±  14957.181  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_2_3                                thrpt   25   2063932.651 ±  11531.011  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_2_4                                thrpt   25   9857634.478 ±  40727.227  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_3_1                                thrpt   25   1646314.681 ±  21972.375  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_3_2                                thrpt   25    724341.954 ±  10669.622  ops/s
+[info] HpackChunkBenchmark.rfc7541AppendixC_3_3                                thrpt   25    442281.951 ±   4111.928  ops/s
+[info] HpackVectorBenchmark.decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList  thrpt   25  20725410.754 ± 129095.802  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_1_1                               thrpt   25  42392092.022 ± 324973.832  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_1_2                               thrpt   25  32306085.132 ± 160695.859  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_1_3                               thrpt   25  42203668.466 ± 178153.354  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_2_1_in_one_chunk                  thrpt   25   1867429.246 ±  43393.963  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_2_1_in_two_chunks                 thrpt   25   1376235.789 ±   7389.661  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_2_2                               thrpt   25   2250439.209 ±  23152.971  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_2_3                               thrpt   25   2138562.370 ±   8969.982  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_2_4                               thrpt   25   3669323.999 ±  27628.263  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_3_1                               thrpt   25   1289014.456 ±   5130.044  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_3_2                               thrpt   25    623044.724 ±   3397.458  ops/s
+[info] HpackVectorBenchmark.rfc7541AppendixC_3_3                               thrpt   25    371392.750 ±   2303.973  ops/s
