@@ -9,11 +9,12 @@ private object ChunkDecoder extends Decoder {
     ctx: DecoderContext
   ): Either[Error, DecoderContext] = ctx match {
     case chunkCtx: ChunkDecoderContext =>
-      val newCtx = decodeRecursive(chunkCtx.copy(bytes = chunkCtx.bytes ++ chunk))
-      if (newCtx.error.isEmpty)
-        Right(newCtx)
+      chunkCtx.bytes = chunkCtx.bytes ++ chunk
+      decodeRecursive(chunkCtx)
+      if (chunkCtx.error.isEmpty)
+        Right(chunkCtx)
       else
-        Left(newCtx.error.get)
+        Left(chunkCtx.error.get)
     case _ => Left(
       Error.Implementation(
         "This Decoder implementation does not work with this type of DecoderContext."
@@ -24,207 +25,161 @@ private object ChunkDecoder extends Decoder {
   @tailrec
   private def decodeRecursive(
     ctx: ChunkDecoderContext
-  ): ChunkDecoderContext = {
-    val headOpt = ctx.bytes.lift(ctx.offset)
-    val newCtxOpt =
-      if (headOpt.isEmpty)
-        None
-      else if ((headOpt.get & 0x80) != 0x00)
+  ): Unit =
+    if (ctx.bytes.isDefinedAt(ctx.offset)) {
+      val origHeaders = ctx.headers
+      val origOffset = ctx.offset
+      val head = ctx.bytes.byte(origOffset)
+      if ((head & 0x80) != 0x00)
         indexedHeader(ctx)
-      else if (headOpt.get == 0x40)
-        literalHeaderNewName(
-          ctx.copy(offset = ctx.offset + 1),
-          Indexing.With
-        )
-      else if ((headOpt.get & 0xC0) == 0x40)
-        literalHeaderIndexedName(
-          ctx,
-          0x3F,
-          Indexing.With
-        )
-      else if (headOpt.get == 0x00)
-        literalHeaderNewName(
-          ctx.copy(offset = ctx.offset + 1),
-          Indexing.Without
-        )
-      else if ((headOpt.get & 0xF0) == 0x00)
-        literalHeaderIndexedName(
-          ctx,
-          0x0F,
-          Indexing.Without
-        )
-      else if (headOpt.get == 0x10)
-        literalHeaderNewName(
-          ctx.copy(offset = ctx.offset + 1),
-          Indexing.Never
-        )
-      else if ((headOpt.get & 0xF0) == 0x10)
-        literalHeaderIndexedName(
-          ctx,
-          0x0F,
-          Indexing.Never
-        )
-      else if ((headOpt.get & 0xE0) != 0x00)
+      else if (head == 0x40) {
+        ctx.offset = origOffset + 1
+        literalHeaderNewName(ctx, Indexing.With)
+      }
+      else if ((head & 0xC0) == 0x40)
+        literalHeaderIndexedName(ctx, 0x3F, Indexing.With)
+      else if (head == 0x00) {
+        ctx.offset = origOffset + 1
+        literalHeaderNewName(ctx, Indexing.Without)
+      }
+      else if ((head & 0xF0) == 0x00)
+        literalHeaderIndexedName(ctx, 0x0F, Indexing.Without)
+      else if (head == 0x10) {
+        ctx.offset = origOffset + 1
+        literalHeaderNewName(ctx, Indexing.Never)
+      }
+      else if ((head & 0xF0) == 0x10)
+        literalHeaderIndexedName(ctx, 0x0F, Indexing.Never)
+      else if ((head & 0xE0) != 0x00)
         resizeTable(ctx, 0x1F)
       else {
         val error = Error.InvalidInput(
           "Could not parse header block.",
-          ctx.offset,
+          origOffset,
           Expectation.FirstHeaderByte,
-          headOpt.get
+          head
         )
-        Some(ctx.copy(error = Some(error)))
+        ctx.error = Some(error)
       }
-    newCtxOpt match {
-      case Some(newCtx) if newCtx.error.isEmpty =>
-        //Console.err.println(s"newCtx $newCtx")
-        decodeRecursive(newCtx)
-      case Some(newCtx) =>
-        //Console.err.println(s"Parse error $newCtx")
-        newCtx   // Parse error
-      case None =>
-        //Console.err.println("Ran out of input?")
-        ctx              // Not enough input to parse one header
+      if (ctx.headers != origHeaders && ctx.offset > origOffset)
+        decodeRecursive(ctx)
+      else if (ctx.error.isEmpty)
+        ctx.offset = origOffset
     }
-  }
 
   /** See RFC 7541 section 6.1. */
   private def indexedHeader(
     ctx: ChunkDecoderContext
-  ): Option[ChunkDecoderContext] =
+  ): Unit =
     decodeInt(0x7F, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
-          case Some(headerField) => Some(
-            ctx.copy(
-              headers = headerField :: ctx.headers,
-              bytes = ctx.bytes.drop(afterIdx),
-              offset = 0
-            )
-          )
+          case Some(headerField) =>
+            ctx.headers = headerField :: ctx.headers
+            ctx.offset = afterIdx
           case None => tableLookupFailure(ctx, idx)
         }
       case Left(err: Error.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: Error.Implementation) => ctx.error = Some(err)
+      case Left(_: Error.IncompleteInput) => // Do nothing
     }
 
   private def decodeHeaderIndexFailure(
     ctx: ChunkDecoderContext,
     chained: Error
-  ): Option[ChunkDecoderContext] =
-    Some(
-      ctx.copy(
-        error = Some(
-          Error.InvalidInput(
-            "Cannot decode header index",
-            ctx.offset,
-            Expectation.HeaderIndex,
-            ctx.bytes(ctx.offset),
-            Some(chained)
-          )
-        )
+  ): Unit =
+    ctx.error = Some(
+      Error.InvalidInput(
+        "Cannot decode header index",
+        ctx.offset,
+        Expectation.HeaderIndex,
+        ctx.bytes.byte(ctx.offset),
+        Some(chained)
       )
     )
 
   private def literalHeaderNewName(
     ctx: ChunkDecoderContext,
     indexing: Indexing
-  ): Option[ChunkDecoderContext] =
+  ): Unit =
     decodeString(ctx) match {
       case Right((name, afterName)) =>
         //Console.err.println(s"name ${new String(name.toArray)}")
-        decodeValue(name, ctx.copy(offset = afterName), indexing)
-      case Left(err: Error.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
-        ctx.copy(
-          error = Some(
-            Error.InvalidInput(
-              "Cannot decode header name starting with " +
-                ctx.bytes(ctx.offset) + ".",
-              ctx.offset,
-              Expectation.HeaderName,
-              ctx.bytes(ctx.offset),
-              Some(err)
-            )
+        ctx.offset = afterName
+        decodeValue(name, ctx, indexing)
+      case Left(err: Error.InvalidInput) =>
+       /* Console.err.println(s"name error $err"); */
+        ctx.error = Some(
+          Error.InvalidInput(
+            "Cannot decode header name starting with " +
+              ctx.bytes.byte(ctx.offset) + ".",
+            ctx.offset,
+            Expectation.HeaderName,
+            ctx.bytes.byte(ctx.offset),
+            Some(err)
           )
         )
-      )
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: Error.Implementation) => ctx.error = Some(err)
+      case Left(_: Error.IncompleteInput) => // Nothing to do
   }
 
   private def decodeValue(
     name: Chunk[Byte],
     ctx: ChunkDecoderContext,
     indexing: Indexing
-  ): Option[ChunkDecoderContext] =
+  ): Unit =
     decodeString(ctx) match {
       case Right((value, afterValue)) =>
         //Console.err.println(s"name ${new String(name.toArray)} value ${new String(value.toArray)} indexing $indexing")
         val headerField = HeaderField(name, value)
-        Some(
-          ctx.copy(
-            headers = headerField :: ctx.headers,
-            bytes = ctx.bytes.drop(afterValue),
-            offset = 0,
-            table = ctx.table.store(headerField, indexing)
+        ctx.headers = headerField :: ctx.headers
+        ctx.offset = afterValue
+        ctx.table = ctx.table.store(headerField, indexing)
+      case Left(err: Error.InvalidInput) => /* Console.err.println(s"value error $err"); */
+        ctx.error = Some(
+          Error.InvalidInput(
+            "Cannot decode header value starting with " +
+              ctx.bytes.byte(ctx.offset) + ".",
+            ctx.offset,
+            Expectation.HeaderValue,
+            ctx.bytes.byte(ctx.offset),
+            Some(err)
           )
         )
-      case Left(err: Error.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
-        ctx.copy(
-          error = Some(
-            Error.InvalidInput(
-              "Cannot decode header value starting with " +
-                ctx.bytes(ctx.offset) + ".",
-              ctx.offset,
-              Expectation.HeaderValue,
-              ctx.bytes(ctx.offset),
-              Some(err)
-            )
-          )
-        )
-      )
-      case Left(err: Error.Implementation) => Some(
-        ctx.copy(
-          error = Some(err)
-        )
-      )
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: Error.Implementation) => ctx.error = Some(err)
+      case Left(_: Error.IncompleteInput) => // Nothing to do
     }
 
   private def literalHeaderIndexedName(
     ctx: ChunkDecoderContext,
     mask: Byte,
     indexing: Indexing
-  ): Option[ChunkDecoderContext] =
+  ): Unit =
     decodeInt(mask, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
           case Some(HeaderField(name, _)) =>
             //Console.err.println(s"Looked up ${new String(name.toArray)}")
-            decodeValue(name, ctx.copy(offset = afterIdx), indexing)
+            ctx.offset = afterIdx
+            decodeValue(name, ctx, indexing)
           case None => tableLookupFailure(ctx, idx)
         }
       case Left(err: Error.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: Error.Implementation) => ctx.error = Some(err)
+      case Left(_: Error.IncompleteInput) => // Nothing to do
     }
 
   private def tableLookupFailure(
     ctx: ChunkDecoderContext,
     idx: Int
-  ): Option[ChunkDecoderContext] = {
+  ): Unit = {
     val maxIdx = StaticTable.numEntries + ctx.table.numEntries
-    Some(
-      ctx.copy(
-        error = Some(
-          Error.InvalidInput(
-            s"Invalid header index $idx is not between 1 and $maxIdx.",
-            ctx.offset,
-            Expectation.HeaderIndex,
-            ctx.bytes(ctx.offset)
-          )
-        )
+    ctx.error = Some(
+      Error.InvalidInput(
+        s"Invalid header index $idx is not between 1 and $maxIdx.",
+        ctx.offset,
+        Expectation.HeaderIndex,
+        ctx.bytes.byte(ctx.offset)
       )
     )
   }
@@ -232,31 +187,23 @@ private object ChunkDecoder extends Decoder {
   private def resizeTable(
     ctx: ChunkDecoderContext,
     mask: Byte
-  ): Option[ChunkDecoderContext] =
+  ): Unit =
     decodeInt(mask, ctx.bytes, ctx.offset) match {
-      case Right((newSize, newOffset)) => Some(
-        ctx.copy(
-          table = ctx.table.resize(newSize),
-          bytes = ctx.bytes.drop(newOffset),
-          offset = 0
-        )
-      )
-      case Left(err: Error.InvalidInput) => Some(
-        ctx.copy(
-          error = Some(
-            Error.InvalidInput(
-              "Cannot decode table size parameter starting with " +
-                ctx.bytes(ctx.offset) + ".",
-              ctx.offset,
-              Expectation.NonZeroLength,
-              ctx.bytes(ctx.offset),
-              Some(err)
-            )
+      case Right((newSize, newOffset)) =>
+        ctx.table = ctx.table.resize(newSize)
+      case Left(err: Error.InvalidInput) =>
+        ctx.error = Some(
+          Error.InvalidInput(
+            "Cannot decode table size parameter starting with " +
+              ctx.bytes.byte(ctx.offset) + ".",
+            ctx.offset,
+            Expectation.NonZeroLength,
+            ctx.bytes.byte(ctx.offset),
+            Some(err)
           )
         )
-      )
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: Error.Implementation) => ctx.error = Some(err)
+      case Left(_: Error.IncompleteInput) => // Nothing to do
     }
 
   /** See RFC 7541 section 5.1. */
@@ -266,7 +213,7 @@ private object ChunkDecoder extends Decoder {
     offset: Int
   ): Either[Error, (Int, Int)] =
     if (bytes.isDefinedAt(offset)) {
-      val value = bytes(offset) & mask
+      val value = bytes.byte(offset) & mask
       if (value != mask)  // i.e. not all 1s
         Right((value, offset + 1))
       else
@@ -289,7 +236,7 @@ private object ChunkDecoder extends Decoder {
     else if (m > 21)
       Left(Error.Implementation("Cannot handle a header size this big."))
     else {
-      val b = bytes(offset)
+      val b = bytes.byte(offset)
       val i = value + ((b & 0x7F) << m)
       if ((b & 0x80) == 0x00)
         Right((i, offset + 1))
@@ -313,7 +260,7 @@ private object ChunkDecoder extends Decoder {
             "Cannot decode string length.",
             ctx.offset,
             Expectation.NonZeroLength,
-            ctx.bytes(ctx.offset),
+            ctx.bytes.byte(ctx.offset),
             Some(err)
           )
         )

@@ -34,12 +34,12 @@ object ErrorDecoderContext {
     )
 }
 
-private[hpack] case class ChunkDecoderContext(
-  table: DynamicTable,
-  bytes: Chunk[Byte] = Chunk.empty,
-  offset: Int = 0,
-  headers: List[HeaderField] = Nil,
-  error: Option[Error] = None
+private[hpack] class ChunkDecoderContext(
+  var table: DynamicTable,
+  var bytes: Chunk[Byte] = Chunk.empty,
+  var offset: Int = 0,
+  var headers: List[HeaderField] = Nil,
+  var error: Option[Error] = None
 ) extends DecoderContext {
   override lazy val headerList: Seq[HeaderField] = headers.reverse
 }
