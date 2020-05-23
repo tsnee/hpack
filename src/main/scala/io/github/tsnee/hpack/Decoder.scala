@@ -36,14 +36,10 @@ private object VectorDecoder extends Decoder {
       if (headOpt.isEmpty)
         None
       else if ((headOpt.get & 0x80) != 0x00)
-        indexedHeader(
-          ctx,
-          0x7F
-        )
+        indexedHeader(ctx)
       else if (headOpt.get == 0x40)
         literalHeaderNewName(
           ctx.copy(offset = ctx.offset + 1),
-          0x7F,
           Indexing.With
         )
       else if ((headOpt.get & 0xC0) == 0x40)
@@ -55,7 +51,6 @@ private object VectorDecoder extends Decoder {
       else if (headOpt.get == 0x00)
         literalHeaderNewName(
           ctx.copy(offset = ctx.offset + 1),
-          0x7F,
           Indexing.Without
         )
       else if ((headOpt.get & 0xF0) == 0x00)
@@ -67,7 +62,6 @@ private object VectorDecoder extends Decoder {
       else if (headOpt.get == 0x10)
         literalHeaderNewName(
           ctx.copy(offset = ctx.offset + 1),
-          0x7F,
           Indexing.Never
         )
       else if ((headOpt.get & 0xF0) == 0x10)
@@ -89,23 +83,22 @@ private object VectorDecoder extends Decoder {
       }
     newCtxOpt match {
       case Some(newCtx) if newCtx.error.isEmpty =>
-        Console.err.println(s"newCtx $newCtx")
+        //Console.err.println(s"newCtx $newCtx")
         decodeRecursive(newCtx)
       case Some(newCtx) =>
-        Console.err.println(s"Parse error $newCtx")
+        //Console.err.println(s"Parse error $newCtx")
         newCtx   // Parse error
       case None =>
-        Console.err.println("Ran out of input?")
+        //Console.err.println("Ran out of input?")
         ctx              // Not enough input to parse one header
     }
   }
 
   /** See RFC 7541 section 6.1. */
   private def indexedHeader(
-    ctx: VectorDecoderContext,
-    mask: Byte
+    ctx: VectorDecoderContext
   ): Option[VectorDecoderContext] =
-    decodeInt(mask, ctx.bytes, ctx.offset) match {
+    decodeInt(0x7F, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
           case Some(headerField) => Some(
@@ -142,14 +135,13 @@ private object VectorDecoder extends Decoder {
 
   private def literalHeaderNewName(
     ctx: VectorDecoderContext,
-    mask: Byte,
     indexing: Indexing
   ): Option[VectorDecoderContext] =
-    decodeString(mask, ctx) match {
+    decodeString(ctx) match {
       case Right((name, afterName)) =>
-        Console.err.println(s"name ${new String(name.toArray)}")
+        //Console.err.println(s"name ${new String(name.toArray)}")
         decodeValue(name, ctx.copy(offset = afterName), indexing)
-      case Left(err: Error.InvalidInput) => Console.err.println(s"name error $err");Some(
+      case Left(err: Error.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
         ctx.copy(
           error = Some(
             Error.InvalidInput(
@@ -172,9 +164,9 @@ private object VectorDecoder extends Decoder {
     ctx: VectorDecoderContext,
     indexing: Indexing
   ): Option[VectorDecoderContext] =
-    decodeString(0x7F, ctx) match {
+    decodeString(ctx) match {
       case Right((value, afterValue)) =>
-        Console.err.println(s"name ${new String(name.toArray)} value ${new String(value.toArray)} indexing $indexing")
+        //Console.err.println(s"name ${new String(name.toArray)} value ${new String(value.toArray)} indexing $indexing")
         val headerField = HeaderField(name, value)
         Some(
           ctx.copy(
@@ -184,7 +176,7 @@ private object VectorDecoder extends Decoder {
             table = ctx.table.store(headerField, indexing)
           )
         )
-      case Left(err: Error.InvalidInput) => Console.err.println(s"value error $err");Some(
+      case Left(err: Error.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
         ctx.copy(
           error = Some(
             Error.InvalidInput(
@@ -215,7 +207,7 @@ private object VectorDecoder extends Decoder {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
           case Some(HeaderField(name, _)) =>
-            Console.err.println(s"Looked up ${new String(name.toArray)}")
+            //Console.err.println(s"Looked up ${new String(name.toArray)}")
             decodeValue(name, ctx.copy(offset = afterIdx), indexing)
           case None => tableLookupFailure(ctx, idx)
         }
@@ -297,7 +289,7 @@ private object VectorDecoder extends Decoder {
     m: Int
   ): Either[Error, (Int, Int)] =
     if (!bytes.isDefinedAt(offset)) {
-      Console.err.println(s"decodeIntRecursive($value, $bytes, $offset, $m)")
+      //Console.err.println(s"decodeIntRecursive($value, $bytes, $offset, $m)")
       Left(Error.IncompleteInput(offset))
     }
     else if (m > 21)
@@ -313,24 +305,46 @@ private object VectorDecoder extends Decoder {
 
   /** See RFC 7541 section 5.2. */
   private[hpack] def decodeString(
-    mask: Byte,
     ctx: VectorDecoderContext
   ): Either[Error, (Chunk[Byte], Int)] =
-    decodeInt(mask, ctx.bytes, ctx.offset) match {
-      case Right((strSize, strOffset)) =>
-        if (strOffset + strSize > ctx.bytes.size)
-          Left(Error.IncompleteInput(strOffset))
-        else
-          Right((Chunk.fromIterable(ctx.bytes.drop(strOffset).take(strSize)), strOffset + strSize))
-      case Left(err: Error.InvalidInput) => Left(
-        Error.InvalidInput(
-          "Cannot decode string length.",
-          ctx.offset,
-          Expectation.NonZeroLength,
-          ctx.bytes(ctx.offset),
-          Some(err)
+    decodeHuffman(ctx).flatMap { h =>
+      decodeInt(0x7F, ctx.bytes, ctx.offset) match {
+        case Right((strSize, strOffset)) =>
+          if (strOffset + strSize > ctx.bytes.size)
+            Left(Error.IncompleteInput(strOffset))
+          else
+            Right((readString(ctx, h, strOffset, strSize), strOffset + strSize))
+        case Left(err: Error.InvalidInput) => Left(
+          Error.InvalidInput(
+            "Cannot decode string length.",
+            ctx.offset,
+            Expectation.NonZeroLength,
+            ctx.bytes(ctx.offset),
+            Some(err)
+          )
         )
-      )
-      case Left(err) => Left(err)
+        case Left(err) => Left(err)
+    }
+  }
+
+  private[hpack] def decodeHuffman(
+    ctx: VectorDecoderContext
+  ): Either[Error, Boolean] =
+    ctx.bytes.lift(ctx.offset) match {
+      case Some(h) => Right((h & 0x80) != 0x00)
+      case None => Left(Error.IncompleteInput(ctx.offset))
+    }
+
+  private def readString(
+    ctx: VectorDecoderContext,
+    h: Boolean,
+    strOffset: Int,
+    strSize: Int
+  ): Chunk[Byte] = {
+    val raw = ctx.bytes.drop(strOffset).take(strSize)
+    if (h)
+      HuffmanCodec.default.decode(raw)
+    else
+      Chunk.fromIterable(raw)
   }
 }
