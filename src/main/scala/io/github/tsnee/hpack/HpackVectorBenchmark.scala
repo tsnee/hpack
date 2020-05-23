@@ -6,12 +6,14 @@ import zio.Chunk
 
 class HpackVectorBenchmark extends HpackBenchmark {
   implicit def forConvenience(i: Int): Byte = i.toByte
+  val emptyCtx = VectorDecoderContext(DynamicTable(1024))
 
   @Benchmark
-  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList = {
-    val emptyCtx = VectorDecoderContext(DynamicTable(1024))
-    VectorDecoder.decode(Chunk.empty, emptyCtx).headerList
-  }
+  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList =
+    VectorDecoder
+      .decode(Chunk.empty, emptyCtx)
+      .getOrElse(emptyCtx)
+      .headerList
 
   @Benchmark
   override def rfc7541AppendixC_1_1 = {
@@ -43,6 +45,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     )
     VectorDecoder
       .decode(chunk, VectorDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -55,9 +58,13 @@ class HpackVectorBenchmark extends HpackBenchmark {
       0x79, 0x0D, 0x63, 0x75, 0x73, 0x74, 0x6F, 0x6D, 0x2D, 0x68, 0x65,
       0x61, 0x64, 0x65, 0x72
     )
-    val intermediateCtx =
-      VectorDecoder.decode(first, VectorDecoderContext(DynamicTable(1024)))
-    VectorDecoder.decode(second, intermediateCtx).headerList
+    val intermediateCtx = VectorDecoder
+      .decode(first, VectorDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
+    VectorDecoder
+      .decode(second, intermediateCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   @Benchmark
@@ -68,6 +75,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     )
     VectorDecoder
       .decode(chunk, VectorDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -79,6 +87,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     )
     VectorDecoder
       .decode(chunk, VectorDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -87,6 +96,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     val chunk: Chunk[Byte] = Chunk.single(0x82)
     VectorDecoder
       .decode(chunk, VectorDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -98,6 +108,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     )
     VectorDecoder
       .decode(chunk, VectorDecoderContext(DynamicTable(57)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -111,11 +122,15 @@ class HpackVectorBenchmark extends HpackBenchmark {
       0x82, 0x86, 0x84, 0xBE, 0x58, 0x08, 0x6E, 0x6F, 0x2D, 0x63, 0x61,
       0x63, 0x68, 0x65
     )
-    val intermediateCtx =
-      VectorDecoder
-        .decode(first, VectorDecoderContext(DynamicTable(110)))
-        .flush
-    VectorDecoder.decode(second, intermediateCtx).headerList
+    val intermediateCtx = VectorDecoder
+      .decode(first, VectorDecoderContext(DynamicTable(110)))
+      .getOrElse(emptyCtx)
+      .asInstanceOf[VectorDecoderContext]
+      .copy(headers =Nil)
+    VectorDecoder
+      .decode(second, intermediateCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   @Benchmark
@@ -133,13 +148,20 @@ class HpackVectorBenchmark extends HpackBenchmark {
       0x6D, 0x2D, 0x6B, 0x65, 0x79, 0x0C, 0x63, 0x75, 0x73, 0x74, 0x6F,
       0x6D, 0x2D, 0x76, 0x61, 0x6C, 0x75, 0x65
     )
-    val afterFirstCtx =
-      VectorDecoder
-        .decode(first, VectorDecoderContext(DynamicTable(164)))
-        .flush
-    val afterSecondCtx =
-      VectorDecoder.decode(second, afterFirstCtx).flush
-    VectorDecoder.decode(third, afterSecondCtx).headerList
+    val afterFirstCtx = VectorDecoder
+      .decode(first, VectorDecoderContext(DynamicTable(164)))
+      .getOrElse(emptyCtx)
+      .asInstanceOf[VectorDecoderContext]
+      .copy(headers =Nil)
+    val afterSecondCtx = VectorDecoder
+      .decode(second, afterFirstCtx)
+      .getOrElse(emptyCtx)
+      .asInstanceOf[VectorDecoderContext]
+      .copy(headers =Nil)
+    VectorDecoder
+      .decode(third, afterSecondCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   override def rfc7541AppendixC_4_1 = {
@@ -149,6 +171,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
     )
     VectorDecoder
       .decode(first, VectorDecoderContext(DynamicTable(57)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 }

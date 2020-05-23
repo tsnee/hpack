@@ -7,11 +7,17 @@ private object VectorDecoder extends Decoder {
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): DecoderContext = ctx match {
+  ): Either[Error, DecoderContext] = ctx match {
     case vectorCtx: VectorDecoderContext =>
-      decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
-    case _ => ErrorDecoderContext(
-      "This Decoder implementation does not work with this type of DecoderContext."
+      val newCtx = decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
+      if (newCtx.error.isEmpty)
+        Right(newCtx)
+      else
+        Left(newCtx.error.get)
+    case _ => Left(
+      Error.Implementation(
+        "This Decoder implementation does not work with this type of DecoderContext."
+      )
     )
   }
 

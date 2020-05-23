@@ -6,12 +6,14 @@ import zio.Chunk
 
 class HpackChunkBenchmark extends HpackBenchmark {
   implicit def forConvenience(i: Int): Byte = i.toByte
+  val emptyCtx = ChunkDecoderContext(DynamicTable(1024))
 
   @Benchmark
-  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList = {
-    val emptyCtx = ChunkDecoderContext(DynamicTable(1024))
-    ChunkDecoder.decode(Chunk.empty, emptyCtx).headerList
-  }
+  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList =
+    ChunkDecoder
+      .decode(Chunk.empty, emptyCtx)
+      .getOrElse(emptyCtx)
+      .headerList
 
   @Benchmark
   override def rfc7541AppendixC_1_1 = {
@@ -43,6 +45,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     )
     ChunkDecoder
       .decode(chunk, ChunkDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -55,9 +58,13 @@ class HpackChunkBenchmark extends HpackBenchmark {
       0x79, 0x0D, 0x63, 0x75, 0x73, 0x74, 0x6F, 0x6D, 0x2D, 0x68, 0x65,
       0x61, 0x64, 0x65, 0x72
     )
-    val intermediateCtx =
-      ChunkDecoder.decode(first, ChunkDecoderContext(DynamicTable(1024)))
-    ChunkDecoder.decode(second, intermediateCtx).headerList
+    val intermediateCtx = ChunkDecoder
+      .decode(first, ChunkDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
+    ChunkDecoder
+      .decode(second, intermediateCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   @Benchmark
@@ -68,6 +75,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     )
     ChunkDecoder
       .decode(chunk, ChunkDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -79,6 +87,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     )
     ChunkDecoder
       .decode(chunk, ChunkDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -87,6 +96,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     val chunk: Chunk[Byte] = Chunk.single(0x82)
     ChunkDecoder
       .decode(chunk, ChunkDecoderContext(DynamicTable(1024)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -98,6 +108,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     )
     ChunkDecoder
       .decode(chunk, ChunkDecoderContext(DynamicTable(57)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 
@@ -111,11 +122,15 @@ class HpackChunkBenchmark extends HpackBenchmark {
       0x82, 0x86, 0x84, 0xBE, 0x58, 0x08, 0x6E, 0x6F, 0x2D, 0x63, 0x61,
       0x63, 0x68, 0x65
     )
-    val intermediateCtx =
-      ChunkDecoder.
-      decode(first, ChunkDecoderContext(DynamicTable(110))).
-      flush
-    ChunkDecoder.decode(second, intermediateCtx).headerList
+    val intermediateCtx = ChunkDecoder
+      .decode(first, ChunkDecoderContext(DynamicTable(110)))
+      .getOrElse(emptyCtx)
+      .asInstanceOf[ChunkDecoderContext]
+      .copy(headers = Nil)
+    ChunkDecoder
+      .decode(second, intermediateCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   @Benchmark
@@ -133,13 +148,20 @@ class HpackChunkBenchmark extends HpackBenchmark {
       0x6D, 0x2D, 0x6B, 0x65, 0x79, 0x0C, 0x63, 0x75, 0x73, 0x74, 0x6F,
       0x6D, 0x2D, 0x76, 0x61, 0x6C, 0x75, 0x65
     )
-    val afterFirstCtx =
-      ChunkDecoder
-        .decode(first, ChunkDecoderContext(DynamicTable(164)))
-        .flush
-    val afterSecondCtx =
-      ChunkDecoder.decode(second, afterFirstCtx).flush
-    ChunkDecoder.decode(third, afterSecondCtx).headerList
+    val afterFirstCtx = ChunkDecoder
+      .decode(first, ChunkDecoderContext(DynamicTable(164)))
+      .getOrElse(emptyCtx)
+      .asInstanceOf[ChunkDecoderContext]
+      .copy(headers = Nil)
+    val afterSecondCtx = ChunkDecoder
+      .decode(second, afterFirstCtx)
+      .getOrElse(emptyCtx)
+      .asInstanceOf[ChunkDecoderContext]
+      .copy(headers = Nil)
+    ChunkDecoder
+      .decode(third, afterSecondCtx)
+      .getOrElse(emptyCtx)
+      .headerList
   }
 
   override def rfc7541AppendixC_4_1 = {
@@ -149,6 +171,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
     )
     ChunkDecoder
       .decode(first, ChunkDecoderContext(DynamicTable(57)))
+      .getOrElse(emptyCtx)
       .headerList
   }
 }

@@ -5,8 +5,6 @@ import zio.Chunk
 /** See RFC 7541 Section 2.2. */
 trait DecoderContext {
   val headerList: Seq[HeaderField]
-  val error: Option[Error]
-  def flush: DecoderContext
 }
 
 object DecoderContext {
@@ -18,8 +16,7 @@ private[hpack] class ErrorDecoderContext(
   err: Error
 ) extends DecoderContext {
   override val headerList = Seq.empty
-  override val error = Some(err)
-  override lazy val flush: DecoderContext = this
+  val error = Some(err)
 }
 
 object ErrorDecoderContext {
@@ -45,7 +42,6 @@ private[hpack] case class ChunkDecoderContext(
   error: Option[Error] = None
 ) extends DecoderContext {
   override lazy val headerList: Seq[HeaderField] = headers.reverse
-  override lazy val flush: DecoderContext = ChunkDecoderContext(table)
 }
 
 private[hpack] case class VectorDecoderContext(
@@ -56,5 +52,4 @@ private[hpack] case class VectorDecoderContext(
   error: Option[Error] = None
 ) extends DecoderContext {
   override lazy val headerList: Seq[HeaderField] = headers.reverse
-  override lazy val flush: DecoderContext = VectorDecoderContext(table)
 }

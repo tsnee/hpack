@@ -8,7 +8,7 @@ trait Decoder {
   def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): DecoderContext
+  ): Either[Error, DecoderContext]
 }
 
 object Decoder {
