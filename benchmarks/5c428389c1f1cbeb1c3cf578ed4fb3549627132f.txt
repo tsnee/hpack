@@ -1,0 +1,13 @@
+[info] Benchmark                                                          Mode  Cnt         Score        Error  Units
+[info] HpackBenchmark.decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList  thrpt   25  16714764.780 ±  99647.766  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_1_1                               thrpt   25  42267002.336 ±  92056.821  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_1_2                               thrpt   25   6141184.890 ±  33640.715  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_1_3                               thrpt   25  42828401.664 ± 346486.276  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_2_1_in_one_chunk                  thrpt   25   1753204.111 ±  29443.524  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_2_1_in_two_chunks                 thrpt   25   1358202.345 ±   6889.337  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_2_2                               thrpt   25   2121063.831 ± 244172.170  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_2_3                               thrpt   25   1658014.401 ± 472373.972  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_2_4                               thrpt   25   3927405.945 ±  29680.521  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_3_1                               thrpt   25   1292972.070 ±  12843.798  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_3_2                               thrpt   25    618408.884 ±   5593.175  ops/s
+[info] HpackBenchmark.rfc7541AppendixC_3_3                               thrpt   25    368971.015 ±   3406.355  ops/s
