@@ -266,7 +266,7 @@ private object VectorDecoder extends Decoder {
     }
 
   /** See RFC 7541 section 5.1. */
-  private[hpack] def decodeInt(
+  private[codec] def decodeInt(
     mask: Byte,
     bytes: Vector[Byte],
     offset: Int
@@ -304,7 +304,7 @@ private object VectorDecoder extends Decoder {
     }
 
   /** See RFC 7541 section 5.2. */
-  private[hpack] def decodeString(
+  private[codec] def decodeString(
     ctx: VectorDecoderContext
   ): Either[HpackError, (Chunk[Byte], Int)] =
     decodeHuffman(ctx).flatMap { h =>
@@ -327,7 +327,7 @@ private object VectorDecoder extends Decoder {
     }
   }
 
-  private[hpack] def decodeHuffman(
+  private[codec] def decodeHuffman(
     ctx: VectorDecoderContext
   ): Either[HpackError, Boolean] =
     ctx.bytes.lift(ctx.offset) match {

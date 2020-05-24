@@ -3,7 +3,7 @@ package io.github.tsnee.hpack.table
 import scala.annotation.tailrec
 import io.github.tsnee.hpack.HeaderField
 
-private[hpack] class DynamicTable private (
+class DynamicTable private (
   val maxSize: Int,
   backingStore: Vector[HeaderField],
   val size: Int
