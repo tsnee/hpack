@@ -1,6 +1,7 @@
 package io.github.tsnee.hpack
 
-object ChunkDecoderSpec extends AbstractDecoderSpec {
-  val suiteName = "ChunkDecoderSpec"
-  val fixture = new HpackChunkBenchmark
-}
+object ChunkDecoderSpec extends AbstractDecoderSpec[ChunkInput](
+  "ChunkDecoderSpec",
+  new HpackChunkBenchmark,
+  new ChunkInput
+)

@@ -1,5 +1,3 @@
-import sbt.Keys._
-
 val zioVersion = "1.0.0-RC19"
 val zioNioVersion = "1.0.0-RC6"
 
