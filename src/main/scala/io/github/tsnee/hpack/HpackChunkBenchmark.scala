@@ -1,11 +1,10 @@
 package io.github.tsnee.hpack
 
 import scala.language.implicitConversions
-import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
+import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
-@State(Scope.Benchmark)
-class ChunkInput {
+object HpackChunkBenchmark {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
   final val emptyCtx = new ChunkDecoderContext(DynamicTable(1024))
@@ -56,139 +55,139 @@ class ChunkInput {
     )
 }
 
-class HpackChunkBenchmark extends HpackBenchmark[ChunkInput] {
+class HpackChunkBenchmark extends HpackBenchmark {
+  import HpackChunkBenchmark._
+
   implicit def forConvenience(i: Int): Byte = i.toByte
 
   def newCtx(tableSize: Int) =
     new ChunkDecoderContext(DynamicTable(tableSize))
 
   @Benchmark
-  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList(
-    input: ChunkInput
-  ) =
+  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList =
     ChunkDecoder
-      .decode(Chunk.empty, input.emptyCtx)
-      .getOrElse(input.emptyCtx)
+      .decode(Chunk.empty, emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_1_1(input: ChunkInput) =
-    ChunkDecoder.decodeInt(0x1F, input.rfc7541AppendixC_1_1_encoded, 0)
+  override def rfc7541AppendixC_1_1 =
+    ChunkDecoder.decodeInt(0x1F, rfc7541AppendixC_1_1_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_2(input: ChunkInput) =
-    ChunkDecoder.decodeInt(0x1F, input.rfc7541AppendixC_1_2_encoded, 0)
+  override def rfc7541AppendixC_1_2 =
+    ChunkDecoder.decodeInt(0x1F, rfc7541AppendixC_1_2_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_3(input: ChunkInput) =
-    ChunkDecoder.decodeInt(0xFF, input.rfc7541AppendixC_1_3_encoded, 0)
+  override def rfc7541AppendixC_1_3 =
+    ChunkDecoder.decodeInt(0xFF, rfc7541AppendixC_1_3_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_2_1_in_one_chunk(input: ChunkInput) =
+  override def rfc7541AppendixC_2_1_in_one_chunk =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_1_encoded,
+        rfc7541AppendixC_2_1_encoded,
         newCtx(1024))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_1_in_two_chunks(input: ChunkInput) = {
+  override def rfc7541AppendixC_2_1_in_two_chunks = {
     val intermediateCtx = ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_1_encoded.take(16),
+        rfc7541AppendixC_2_1_encoded.take(16),
         newCtx(1024))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_1_encoded.drop(16),
+        rfc7541AppendixC_2_1_encoded.drop(16),
         intermediateCtx)
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
   }
 
   @Benchmark
-  override def rfc7541AppendixC_2_2(input: ChunkInput) =
+  override def rfc7541AppendixC_2_2 =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_2_encoded,
+        rfc7541AppendixC_2_2_encoded,
         newCtx(1024))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_3(input: ChunkInput) =
+  override def rfc7541AppendixC_2_3 =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_3_encoded,
+        rfc7541AppendixC_2_3_encoded,
         newCtx(1024))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_4(input: ChunkInput) =
+  override def rfc7541AppendixC_2_4 =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_2_4_encoded,
+        rfc7541AppendixC_2_4_encoded,
         newCtx(1024))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_3_1(input: ChunkInput) =
+  override def rfc7541AppendixC_3_1 =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_1_encoded,
+        rfc7541AppendixC_3_1_encoded,
         newCtx(57))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_3_2(input: ChunkInput) = {
+  override def rfc7541AppendixC_3_2 = {
     val intermediateCtx = ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_1_encoded,
+        rfc7541AppendixC_3_1_encoded,
         newCtx(110))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .asInstanceOf[ChunkDecoderContext]
     intermediateCtx.headers = Nil
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_2_encoded,
+        rfc7541AppendixC_3_2_encoded,
         intermediateCtx)
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
   }
 
   @Benchmark
-  override def rfc7541AppendixC_3_3(input: ChunkInput) = {
+  override def rfc7541AppendixC_3_3 = {
     val afterFirstCtx = ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_1_encoded,
+        rfc7541AppendixC_3_1_encoded,
         newCtx(164))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .asInstanceOf[ChunkDecoderContext]
     afterFirstCtx.headers = Nil
     val afterSecondCtx = ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_2_encoded,
+        rfc7541AppendixC_3_2_encoded,
         afterFirstCtx)
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .asInstanceOf[ChunkDecoderContext]
     afterSecondCtx.headers = Nil
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_3_3_encoded,
+        rfc7541AppendixC_3_3_encoded,
         afterSecondCtx)
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
   }
 
-  override def rfc7541AppendixC_4_1(input: ChunkInput) =
+  override def rfc7541AppendixC_4_1 =
     ChunkDecoder
       .decode(
-        input.rfc7541AppendixC_4_1_encoded,
+        rfc7541AppendixC_4_1_encoded,
         newCtx(57))
-      .getOrElse(input.emptyCtx)
+      .getOrElse(emptyCtx)
       .headerList
 }

@@ -1,7 +1,6 @@
 package io.github.tsnee.hpack
 
-object ChunkDecoderSpec extends AbstractDecoderSpec[ChunkInput](
+object ChunkDecoderSpec extends AbstractDecoderSpec(
   "ChunkDecoderSpec",
-  new HpackChunkBenchmark,
-  new ChunkInput
+  new HpackChunkBenchmark
 )
