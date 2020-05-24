@@ -1,4 +1,6 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.table
+
+import io.github.tsnee.hpack.HeaderField
 
 private[hpack] object StaticTable extends IndexTable(
   Vector(

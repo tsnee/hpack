@@ -5,6 +5,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "hpack",
     scalaVersion := "2.13.2",
+    scalacOptions ++= Seq("-deprecation", "-feature"),
     libraryDependencies ++= Seq(
       "dev.zio"        %% "zio-nio"                  % zioNioVersion,
       "org.openjdk.jmh" % "jmh-generator-annprocess" % "1.21"     % "test",

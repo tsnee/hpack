@@ -1,4 +1,4 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.huffman
 
 import zio.Chunk
 

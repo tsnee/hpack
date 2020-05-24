@@ -1,13 +1,15 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.codec
 
 import scala.language.implicitConversions
+import io.github.tsnee.hpack.{HeaderField, HpackError}
+import io.github.tsnee.hpack.table.DynamicTable
 import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
 object HpackVectorBenchmark {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
-  val emptyCtx = new VectorDecoderContext(DynamicTable(1024))
+  val emptyCtx = VectorDecoderContext(DynamicTable(1024))
   val rfc7541AppendixC_1_1_encoded: Vector[Byte] =
     Vector(0x0A)
   val rfc7541AppendixC_1_2_encoded: Vector[Byte] =
@@ -58,32 +60,30 @@ object HpackVectorBenchmark {
 class HpackVectorBenchmark extends HpackBenchmark {
   import HpackVectorBenchmark._
 
-  implicit def forConvenience(i: Int): Byte = i.toByte
-
   def newCtx(tableSize: Int) =
-    new VectorDecoderContext(DynamicTable(tableSize))
+    VectorDecoderContext(DynamicTable(tableSize))
 
   @Benchmark
-  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList =
+  override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField] =
     VectorDecoder
       .decode(Chunk.empty, emptyCtx)
       .getOrElse(emptyCtx)
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_1_1 =
+  override def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)] =
     VectorDecoder.decodeInt(0x1F, rfc7541AppendixC_1_1_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_2 =
+  override def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)] =
     VectorDecoder.decodeInt(0x1F, rfc7541AppendixC_1_2_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_3 =
+  override def rfc7541AppendixC_1_3: Either[HpackError, (Int, Int)] =
     VectorDecoder.decodeInt(0xFF, rfc7541AppendixC_1_3_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_2_1_in_one_chunk =
+  override def rfc7541AppendixC_2_1_in_one_chunk: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_2_1_encoded,
@@ -92,7 +92,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_1_in_two_chunks = {
+  override def rfc7541AppendixC_2_1_in_two_chunks: Seq[HeaderField] = {
     val intermediateCtx = VectorDecoder
       .decode(
         rfc7541AppendixC_2_1_encoded.take(16),
@@ -107,7 +107,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
   }
 
   @Benchmark
-  override def rfc7541AppendixC_2_2 =
+  override def rfc7541AppendixC_2_2: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_2_2_encoded,
@@ -116,7 +116,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_3 =
+  override def rfc7541AppendixC_2_3: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_2_3_encoded,
@@ -125,7 +125,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_2_4 =
+  override def rfc7541AppendixC_2_4: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_2_4_encoded,
@@ -134,7 +134,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_3_1 =
+  override def rfc7541AppendixC_3_1: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
@@ -143,14 +143,14 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
 
   @Benchmark
-  override def rfc7541AppendixC_3_2 = {
+  override def rfc7541AppendixC_3_2: Seq[HeaderField] = {
     val intermediateCtx = VectorDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
         newCtx(110))
       .getOrElse(emptyCtx)
       .asInstanceOf[VectorDecoderContext]
-      .copy(headers =Nil)
+      .copy(headers = Nil)
     VectorDecoder
       .decode(
         rfc7541AppendixC_3_2_encoded,
@@ -160,7 +160,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
   }
 
   @Benchmark
-  override def rfc7541AppendixC_3_3 = {
+  override def rfc7541AppendixC_3_3: Seq[HeaderField] = {
     val afterFirstCtx = VectorDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
@@ -183,7 +183,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
       .headerList
   }
 
-  override def rfc7541AppendixC_4_1 =
+  override def rfc7541AppendixC_4_1: Seq[HeaderField] =
     VectorDecoder
       .decode(
         rfc7541AppendixC_4_1_encoded,

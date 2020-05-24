@@ -1,10 +1,12 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.codec
+
+import io.github.tsnee.hpack.{HeaderField, HpackError}
 
 trait HpackBenchmark {
   def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField]
-  def rfc7541AppendixC_1_1: Either[Error, (Int, Int)]
-  def rfc7541AppendixC_1_2: Either[Error, (Int, Int)]
-  def rfc7541AppendixC_1_3: Either[Error, (Int, Int)]
+  def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)]
+  def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)]
+  def rfc7541AppendixC_1_3: Either[HpackError, (Int, Int)]
   def rfc7541AppendixC_2_1_in_one_chunk: Seq[HeaderField]
   def rfc7541AppendixC_2_1_in_two_chunks: Seq[HeaderField]
   def rfc7541AppendixC_2_2: Seq[HeaderField]

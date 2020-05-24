@@ -1,13 +1,19 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.codec
 
 import scala.annotation.tailrec
+import scala.language.implicitConversions
+import io.github.tsnee.hpack.{HpackError, HeaderField}
+import io.github.tsnee.hpack.huffman.HuffmanCodec
+import io.github.tsnee.hpack.table.{Indexing, StaticTable}
 import zio.Chunk
 
 private object VectorDecoder extends Decoder {
+  implicit def forConvenience(i: Int): Byte = i.toByte
+
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): Either[Error, DecoderContext] = ctx match {
+  ): Either[HpackError, DecoderContext] = ctx match {
     case vectorCtx: VectorDecoderContext =>
       val newCtx = decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
       if (newCtx.error.isEmpty)
@@ -15,7 +21,7 @@ private object VectorDecoder extends Decoder {
       else
         Left(newCtx.error.get)
     case _ => Left(
-      Error.Implementation(
+      HpackError.Implementation(
         "This Decoder implementation does not work with this type of DecoderContext."
       )
     )
@@ -67,10 +73,10 @@ private object VectorDecoder extends Decoder {
       else if ((headOpt.get & 0xE0) != 0x00)
         resizeTable(ctx, 0x1F)
       else {
-        val error = Error.InvalidInput(
+        val error = HpackError.InvalidInput(
           "Could not parse header block.",
           ctx.offset,
-          Expectation.FirstHeaderByte,
+          HpackError.Expectation.FirstHeaderByte,
           headOpt.get
         )
         Some(ctx.copy(error = Some(error)))
@@ -104,22 +110,22 @@ private object VectorDecoder extends Decoder {
           )
           case None => tableLookupFailure(ctx, idx)
         }
-      case Left(err: Error.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: HpackError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
+      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: HpackError.IncompleteInput) => None
     }
 
   private def decodeHeaderIndexFailure(
     ctx: VectorDecoderContext,
-    chained: Error
+    chained: HpackError
   ): Option[VectorDecoderContext] =
     Some(
       ctx.copy(
         error = Some(
-          Error.InvalidInput(
+          HpackError.InvalidInput(
             "Cannot decode header index",
             ctx.offset,
-            Expectation.HeaderIndex,
+            HpackError.Expectation.HeaderIndex,
             ctx.bytes(ctx.offset),
             Some(chained)
           )
@@ -135,22 +141,22 @@ private object VectorDecoder extends Decoder {
       case Right((name, afterName)) =>
         //Console.err.println(s"name ${new String(name.toArray)}")
         decodeValue(name, ctx.copy(offset = afterName), indexing)
-      case Left(err: Error.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
+      case Left(err: HpackError.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
         ctx.copy(
           error = Some(
-            Error.InvalidInput(
+            HpackError.InvalidInput(
               "Cannot decode header name starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              Expectation.HeaderName,
+              HpackError.Expectation.HeaderName,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: HpackError.IncompleteInput) => None
   }
 
   private def decodeValue(
@@ -170,26 +176,26 @@ private object VectorDecoder extends Decoder {
             table = ctx.table.store(headerField, indexing)
           )
         )
-      case Left(err: Error.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
+      case Left(err: HpackError.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
         ctx.copy(
           error = Some(
-            Error.InvalidInput(
+            HpackError.InvalidInput(
               "Cannot decode header value starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              Expectation.HeaderValue,
+              HpackError.Expectation.HeaderValue,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: Error.Implementation) => Some(
+      case Left(err: HpackError.Implementation) => Some(
         ctx.copy(
           error = Some(err)
         )
       )
-      case Left(_: Error.IncompleteInput) => None
+      case Left(_: HpackError.IncompleteInput) => None
     }
 
   private def literalHeaderIndexedName(
@@ -205,9 +211,9 @@ private object VectorDecoder extends Decoder {
             decodeValue(name, ctx.copy(offset = afterIdx), indexing)
           case None => tableLookupFailure(ctx, idx)
         }
-      case Left(err: Error.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: HpackError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
+      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: HpackError.IncompleteInput) => None
     }
 
   private def tableLookupFailure(
@@ -218,10 +224,10 @@ private object VectorDecoder extends Decoder {
     Some(
       ctx.copy(
         error = Some(
-          Error.InvalidInput(
+          HpackError.InvalidInput(
             s"Invalid header index $idx is not between 1 and $maxIdx.",
             ctx.offset,
-            Expectation.HeaderIndex,
+            HpackError.Expectation.HeaderIndex,
             ctx.bytes(ctx.offset)
           )
         )
@@ -241,22 +247,22 @@ private object VectorDecoder extends Decoder {
           offset = 0
         )
       )
-      case Left(err: Error.InvalidInput) => Some(
+      case Left(err: HpackError.InvalidInput) => Some(
         ctx.copy(
           error = Some(
-            Error.InvalidInput(
+            HpackError.InvalidInput(
               "Cannot decode table size parameter starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              Expectation.NonZeroLength,
+              HpackError.Expectation.NonZeroLength,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: Error.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: Error.IncompleteInput) => None
+      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: HpackError.IncompleteInput) => None
     }
 
   /** See RFC 7541 section 5.1. */
@@ -264,7 +270,7 @@ private object VectorDecoder extends Decoder {
     mask: Byte,
     bytes: Vector[Byte],
     offset: Int
-  ): Either[Error, (Int, Int)] =
+  ): Either[HpackError, (Int, Int)] =
     if (bytes.isDefinedAt(offset)) {
       val value = bytes(offset) & mask
       if (value != mask)  // i.e. not all 1s
@@ -273,7 +279,7 @@ private object VectorDecoder extends Decoder {
         decodeIntRecursive(value, bytes, offset + 1, 0)
     }
     else
-      Left(Error.IncompleteInput(offset))
+      Left(HpackError.IncompleteInput(offset))
 
   @tailrec
   private def decodeIntRecursive(
@@ -281,13 +287,13 @@ private object VectorDecoder extends Decoder {
     bytes: Vector[Byte],
     offset: Int,
     m: Int
-  ): Either[Error, (Int, Int)] =
+  ): Either[HpackError, (Int, Int)] =
     if (!bytes.isDefinedAt(offset)) {
       //Console.err.println(s"decodeIntRecursive($value, $bytes, $offset, $m)")
-      Left(Error.IncompleteInput(offset))
+      Left(HpackError.IncompleteInput(offset))
     }
     else if (m > 21)
-      Left(Error.Implementation("Cannot handle a header size this big."))
+      Left(HpackError.Implementation("Cannot handle a header size this big."))
     else {
       val b = bytes(offset)
       val i = value + ((b & 0x7F) << m)
@@ -300,19 +306,19 @@ private object VectorDecoder extends Decoder {
   /** See RFC 7541 section 5.2. */
   private[hpack] def decodeString(
     ctx: VectorDecoderContext
-  ): Either[Error, (Chunk[Byte], Int)] =
+  ): Either[HpackError, (Chunk[Byte], Int)] =
     decodeHuffman(ctx).flatMap { h =>
       decodeInt(0x7F, ctx.bytes, ctx.offset) match {
         case Right((strSize, strOffset)) =>
           if (strOffset + strSize > ctx.bytes.size)
-            Left(Error.IncompleteInput(strOffset))
+            Left(HpackError.IncompleteInput(strOffset))
           else
             Right((readString(ctx, h, strOffset, strSize), strOffset + strSize))
-        case Left(err: Error.InvalidInput) => Left(
-          Error.InvalidInput(
+        case Left(err: HpackError.InvalidInput) => Left(
+          HpackError.InvalidInput(
             "Cannot decode string length.",
             ctx.offset,
-            Expectation.NonZeroLength,
+            HpackError.Expectation.NonZeroLength,
             ctx.bytes(ctx.offset),
             Some(err)
           )
@@ -323,10 +329,10 @@ private object VectorDecoder extends Decoder {
 
   private[hpack] def decodeHuffman(
     ctx: VectorDecoderContext
-  ): Either[Error, Boolean] =
+  ): Either[HpackError, Boolean] =
     ctx.bytes.lift(ctx.offset) match {
       case Some(h) => Right((h & 0x80) != 0x00)
-      case None => Left(Error.IncompleteInput(ctx.offset))
+      case None => Left(HpackError.IncompleteInput(ctx.offset))
     }
 
   private def readString(

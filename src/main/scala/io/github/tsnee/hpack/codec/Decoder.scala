@@ -1,6 +1,6 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.codec
 
-import scala.annotation.tailrec
+import io.github.tsnee.hpack.HpackError
 import zio.Chunk
 
 /** See RFC 7541 Section 3. */
@@ -8,7 +8,7 @@ trait Decoder {
   def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): Either[Error, DecoderContext]
+  ): Either[HpackError, DecoderContext]
 }
 
 object Decoder {

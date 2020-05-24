@@ -1,9 +1,10 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.codec
 
+import io.github.tsnee.hpack.HeaderField
 import zio.duration._
-import zio.test._
 import zio.test.Assertion._
 import zio.test.TestAspect._
+import zio.test._
 
 abstract class AbstractDecoderSpec(
   suiteName: String,

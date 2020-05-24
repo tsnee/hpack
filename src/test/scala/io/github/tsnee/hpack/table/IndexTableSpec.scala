@@ -1,8 +1,8 @@
-package io.github.tsnee.hpack
+package io.github.tsnee.hpack.table
 
-import zio.test._
+import io.github.tsnee.hpack.HeaderField
 import zio.test.Assertion._
-import zio.test.environment._
+import zio.test._
 
 object IndexTableSpec extends DefaultRunnableSpec {
   override def spec = suite("IndexTableSpec")(
