@@ -1,6 +1,7 @@
 package io.github.tsnee.hpack.codec
 
 import io.github.tsnee.hpack.HpackError
+import io.github.tsnee.hpack.codec.optimized.MutableDecoder
 import zio.Chunk
 
 /** See RFC 7541 Section 3. */

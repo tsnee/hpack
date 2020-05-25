@@ -1,21 +1,33 @@
-package io.github.tsnee.hpack.codec
+package io.github.tsnee.hpack.codec.functional
 
-import scala.annotation.tailrec
-import scala.language.implicitConversions
-import io.github.tsnee.hpack.{HpackError, HeaderField}
+import io.github.tsnee.hpack._
+import io.github.tsnee.hpack.codec.{Decoder, DecoderContext}
 import io.github.tsnee.hpack.huffman.HuffmanCodec
-import io.github.tsnee.hpack.table.{Indexing, StaticTable}
+import io.github.tsnee.hpack.table.{DynamicTable, Indexing, StaticTable}
 import zio.Chunk
 
-private object ImmutableDecoder extends Decoder {
-  implicit def forConvenience(i: Int): Byte = i.toByte
+import scala.annotation.tailrec
 
+private[codec] case class ImmutableDecoderContext(
+  table: DynamicTable,
+  bytes: Chunk[Byte] = Chunk.empty,
+  offset: Int = 0,
+  headers: List[HeaderField] = Nil,
+  error: Option[HpackError] = None
+) extends DecoderContext {
+  override def headerList: (Seq[HeaderField], DecoderContext) = {
+    assert(bytes.size == offset)  // all input consumed
+    (headers.reverse, ImmutableDecoderContext(table))
+  }
+}
+
+private[codec] object ImmutableDecoder extends Decoder {
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
   ): Either[HpackError, DecoderContext] = ctx match {
-    case vectorCtx: ImmutableDecoderContext =>
-      val newCtx = decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
+    case chunkCtx: ImmutableDecoderContext =>
+      val newCtx = decodeRecursive(chunkCtx.copy(bytes = chunkCtx.bytes ++ chunk))
       if (newCtx.error.isEmpty)
         Right(newCtx)
       else
@@ -267,7 +279,7 @@ private object ImmutableDecoder extends Decoder {
   /** See RFC 7541 section 5.1. */
   private[codec] def decodeInt(
     mask: Byte,
-    bytes: Vector[Byte],
+    bytes: Chunk[Byte],
     offset: Int
   ): Either[HpackError, (Int, Int)] =
     if (bytes.isDefinedAt(offset)) {
@@ -283,7 +295,7 @@ private object ImmutableDecoder extends Decoder {
   @tailrec
   private def decodeIntRecursive(
     value: Int,
-    bytes: Vector[Byte],
+    bytes: Chunk[Byte],
     offset: Int,
     m: Int
   ): Either[HpackError, (Int, Int)] =
@@ -335,10 +347,10 @@ private object ImmutableDecoder extends Decoder {
     }
 
   private def readString(
-                          ctx: ImmutableDecoderContext,
-                          h: Boolean,
-                          strOffset: Int,
-                          strSize: Int
+    ctx: ImmutableDecoderContext,
+    h: Boolean,
+    strOffset: Int,
+    strSize: Int
   ): Chunk[Byte] = {
     val raw = ctx.bytes.slice(strOffset, strOffset + strSize)
     val chunk = Chunk.fromIterable(raw)

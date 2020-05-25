@@ -1,15 +1,30 @@
-package io.github.tsnee.hpack.codec
+package io.github.tsnee.hpack.codec.optimized
 
-import scala.annotation.tailrec
-import scala.language.implicitConversions
-import io.github.tsnee.hpack.{HpackError, HeaderField}
+import io.github.tsnee.hpack._
+import io.github.tsnee.hpack.codec.{Decoder, DecoderContext}
 import io.github.tsnee.hpack.huffman.HuffmanCodec
-import io.github.tsnee.hpack.table.{Indexing, StaticTable}
+import io.github.tsnee.hpack.table.{DynamicTable, Indexing, StaticTable}
 import zio.Chunk
 
-private object MutableDecoder extends Decoder {
-  implicit def forConvenience(i: Int): Byte = i.toByte
+import scala.annotation.tailrec
 
+private[codec] class MutableDecoderContext(
+  var table: DynamicTable,
+  var bytes: Chunk[Byte] = Chunk.empty,
+  var offset: Int = 0,
+  var headers: List[HeaderField] = Nil,
+  var error: Option[HpackError] = None
+) extends DecoderContext {
+  override def headerList: (Seq[HeaderField], DecoderContext) = {
+    assert(bytes.size == offset)  // all input consumed
+    (headers.reverse, new MutableDecoderContext(table))
+  }
+
+  override def toString: String =
+    s"MutableDecoderContext($table, ${bytes.map(_.toHexString)}, $offset, $headers, $error)"
+}
+
+private[codec] object MutableDecoder extends Decoder {
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext

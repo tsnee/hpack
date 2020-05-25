@@ -18,8 +18,5 @@ object HeaderField {
     name: String,
     value: String
   ): HeaderField =
-    new HeaderField(fromString(name), fromString(value))
-
-  private def fromString(s: String): Chunk[Byte] =
-    Chunk.fromArray(s.getBytes(Codec.UTF8.charSet))
+    new HeaderField(name, value)
 }

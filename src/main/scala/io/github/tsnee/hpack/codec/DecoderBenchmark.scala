@@ -1,8 +1,9 @@
 package io.github.tsnee.hpack.codec
 
-import io.github.tsnee.hpack.{HeaderField, HpackError}
+import io.github.tsnee.hpack._
+import zio.Chunk
 
-trait HpackDecoderBenchmark {
+trait DecoderBenchmark {
   def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField]
   def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)]
   def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)]

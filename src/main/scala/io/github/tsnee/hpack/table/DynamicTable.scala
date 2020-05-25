@@ -2,10 +2,11 @@ package io.github.tsnee.hpack.table
 
 import scala.annotation.tailrec
 import io.github.tsnee.hpack.HeaderField
+import zio.Chunk
 
 class DynamicTable private (
   val maxSize: Int,
-  backingStore: Vector[HeaderField],
+  backingStore: Chunk[HeaderField],
   val size: Int
 ) extends IndexTable(backingStore) {
 
@@ -29,13 +30,13 @@ class DynamicTable private (
   def resize(newMaxSize: Int): DynamicTable = {
     require(newMaxSize >= 0)
     if (newMaxSize == 0)
-      new DynamicTable(newMaxSize, Vector.empty, 0)
+      new DynamicTable(newMaxSize, Chunk.empty, 0)
     else
       shrink(newMaxSize, backingStore, size)
   }
 
   @tailrec
-  private def shrink(newMaxSize: Int, fields: Vector[HeaderField], size: Int): DynamicTable = {
+  private def shrink(newMaxSize: Int, fields: Chunk[HeaderField], size: Int): DynamicTable = {
     assert(newMaxSize >= 0 && size >= 0)
     if (size <= newMaxSize)
       new DynamicTable(newMaxSize, fields, size)
@@ -55,6 +56,6 @@ class DynamicTable private (
 object DynamicTable {
   def apply(maxSize: Int): DynamicTable = {
     require(maxSize >= 0)
-    new DynamicTable(maxSize, Vector.empty, 0)
+    new DynamicTable(maxSize, Chunk.empty, 0)
   }
 }

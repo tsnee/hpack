@@ -1,9 +1,10 @@
 package io.github.tsnee.hpack.table
 
 import io.github.tsnee.hpack.HeaderField
+import zio.Chunk
 
 object StaticTable extends IndexTable(
-  Vector(
+  Chunk(
     // From RCF 7541 Appendix A
     HeaderField(":authority", ""),
     HeaderField(":method", "GET"),
