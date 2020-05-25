@@ -1,6 +1,7 @@
 package io.github.tsnee.hpack.codec
 
 import io.github.tsnee.hpack.HeaderField
+import io.github.tsnee.hpack.codec.Fixtures._
 import zio.duration._
 import zio.test.Assertion._
 import zio.test.TestAspect._
@@ -29,92 +30,47 @@ abstract class AbstractDecoderSpec(
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.1 in one chunk") {
       val actual = decoderFunctions.rfc7541AppendixC_2_1_in_one_chunk
-      val expected = List(HeaderField("custom-key", "custom-header"))
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_2_1_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.1 in two chunks") {
       val actual = decoderFunctions.rfc7541AppendixC_2_1_in_two_chunks
-      val expected = List(HeaderField("custom-key", "custom-header"))
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_2_1_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.2") {
       val actual = decoderFunctions.rfc7541AppendixC_2_2
-      val expected = List(HeaderField(":path", "/sample/path"))
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_2_2_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.3") {
       val actual = decoderFunctions.rfc7541AppendixC_2_3
-      val expected = List(HeaderField("password", "secret"))
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_2_3_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.2.4") {
       val actual = decoderFunctions.rfc7541AppendixC_2_4
-      val expected = List(HeaderField(":method", "GET"))
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_2_4_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.3.1") {
       val actual = decoderFunctions.rfc7541AppendixC_3_1
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "http"),
-        HeaderField(":path", "/"),
-        HeaderField(":authority", "www.example.com")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_3_1_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.3.2") {
       val actual = decoderFunctions.rfc7541AppendixC_3_2
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "http"),
-        HeaderField(":path", "/"),
-        HeaderField(":authority", "www.example.com"),
-        HeaderField("cache-control", "no-cache")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_3_2_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.3.3") {
       val actual = decoderFunctions.rfc7541AppendixC_3_3
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "https"),
-        HeaderField(":path", "/index.html"),
-        HeaderField(":authority", "www.example.com"),
-        HeaderField("custom-key", "custom-value")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_3_3_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.4.1") {
       val actual = decoderFunctions.rfc7541AppendixC_4_1
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "http"),
-        HeaderField(":path", "/"),
-        HeaderField(":authority", "www.example.com")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_4_1_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.4.2") {
       val actual = decoderFunctions.rfc7541AppendixC_4_2
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "http"),
-        HeaderField(":path", "/"),
-        HeaderField(":authority", "www.example.com"),
-        HeaderField("cache-control", "no-cache")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_4_2_decoded))
     } @@ timeout(10.seconds),
     test("RFC 7541 Appendix C.4.3") {
       val actual = decoderFunctions.rfc7541AppendixC_4_3
-      val expected = List(
-        HeaderField(":method", "GET"),
-        HeaderField(":scheme", "https"),
-        HeaderField(":path", "/index.html"),
-        HeaderField(":authority", "www.example.com"),
-        HeaderField("custom-key", "custom-value")
-      )
-      assert(actual)(equalTo(expected))
+      assert(actual)(equalTo(rfc7541AppendixC_4_3_decoded))
     } @@ timeout(10.seconds)
   )
 }

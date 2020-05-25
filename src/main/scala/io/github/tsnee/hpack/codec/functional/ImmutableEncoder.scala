@@ -1,8 +1,8 @@
 package io.github.tsnee.hpack.codec.functional
 
 import io.github.tsnee.hpack._
-import io.github.tsnee.hpack.codec.{Encoder, EncoderContext, ImmutableEncoderContext}
-import io.github.tsnee.hpack.table.Indexing
+import io.github.tsnee.hpack.codec._
+import io.github.tsnee.hpack.table.{Indexing, Match}
 import zio.Chunk
 
 import scala.annotation.tailrec
@@ -58,16 +58,29 @@ private object ImmutableEncoder extends Encoder {
       case Some(Indexing.Never) => false
       case _ => true
     }
-    if (index) {
-      val found = acc.table.find(hf)
-      val (name, value) = if (
-        (!acc.compressedByDefault && acc.compressed.contains(hf.name)) ||
-          (acc.compressedByDefault && !acc.notCompressed.contains(hf.name))
-      )
-        compress(hf)
-      else
-        (hf.name, hf.value)
-    }
+    val encodedHeader =
+      if (index) {
+        acc.table.find(hf) match {
+          case Match.Full(idx) =>
+            val header = IndexedHeaderField.header(Indexing.With)
+            encodePositiveInt(header, 7, idx)
+          case Match.Partial(idx) =>
+            val header = LiteralHeaderField.header(Indexing.With)
+            encodePositiveInt(header, 7, idx)
+            //encodeValue
+          case Match.NotFound =>
+            val header = LiteralHeaderField.header(Indexing.With)
+            encodePositiveInt(header, 7, 0)
+          //encodeValue
+        }
+        val (name, value) = if (
+          (!acc.compressedByDefault && acc.compressed.contains(hf.name)) ||
+            (acc.compressedByDefault && !acc.notCompressed.contains(hf.name))
+        )
+          compress(hf)
+        else
+          (hf.name, hf.value)
+      }
     ???
   }
 

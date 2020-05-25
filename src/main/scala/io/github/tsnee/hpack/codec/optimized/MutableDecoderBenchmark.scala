@@ -1,14 +1,13 @@
 package io.github.tsnee.hpack.codec.optimized
 
 import io.github.tsnee.hpack._
-import io.github.tsnee.hpack.codec.{DecoderBenchmark, Fixtures}
+import io.github.tsnee.hpack.codec.DecoderBenchmark
+import io.github.tsnee.hpack.codec.Fixtures._
 import io.github.tsnee.hpack.table.DynamicTable
 import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
 class MutableDecoderBenchmark extends DecoderBenchmark {
-  import Fixtures._
-
   def emptyCtx = new MutableDecoderContext(DynamicTable(1024))
 
   def newCtx(tableSize: Int) =
