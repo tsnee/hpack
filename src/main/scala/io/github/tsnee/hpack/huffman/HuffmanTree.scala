@@ -19,7 +19,6 @@ object HuffmanTree extends HuffmanCodec {
     bytes: List[Byte]
   ) extends CodeTree
   private final case class Leaf(byte: Byte) extends CodeTree
-  private case object Blank extends CodeTree
 
   private def bytes(tree: CodeTree): List[Byte] = tree match {
     case Leaf(byte) => List(byte)
