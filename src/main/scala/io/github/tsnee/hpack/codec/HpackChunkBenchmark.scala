@@ -57,6 +57,17 @@ object HpackChunkBenchmark {
       0x82, 0x86, 0x84, 0x41, 0x8C, 0xF1, 0xE3, 0xC2, 0xE5, 0xF2, 0x3A,
       0x6B, 0xA0, 0xAB, 0x90, 0xF4, 0xFF
     )
+  val rfc7541AppendixC_4_2_encoded: Chunk[Byte] =
+    Chunk(
+      0x82, 0x86, 0x84, 0xBE, 0x58, 0x86, 0xA8, 0xEB, 0x10, 0x64, 0x9C,
+      0xBF
+    )
+  val rfc7541AppendixC_4_3_encoded: Chunk[Byte] =
+    Chunk(
+      0x82, 0x87, 0x85, 0xBF, 0x40, 0x88, 0x25, 0xA8, 0x49, 0xE9, 0x5B,
+      0xA9, 0x7D, 0x7F, 0x89, 0x25, 0xA8, 0x49, 0xE9, 0x5B, 0xB8, 0xE8,
+      0xB4, 0xBF
+    )
 }
 
 class HpackChunkBenchmark extends HpackBenchmark {
@@ -71,6 +82,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
       .decode(Chunk.empty, emptyCtx)
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_1_1: Either[hpack.HpackError, (Int, Int)] =
@@ -92,6 +104,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(1024))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_2_1_in_two_chunks: Seq[HeaderField] = {
@@ -106,6 +119,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         intermediateCtx)
       .getOrElse(emptyCtx)
       .headerList
+      ._1
   }
 
   @Benchmark
@@ -116,6 +130,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(1024))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_2_3: Seq[HeaderField] =
@@ -125,6 +140,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(1024))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_2_4: Seq[HeaderField] =
@@ -134,6 +150,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(1024))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_3_1: Seq[HeaderField] =
@@ -143,6 +160,7 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(57))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
 
   @Benchmark
   override def rfc7541AppendixC_3_2: Seq[HeaderField] = {
@@ -151,14 +169,15 @@ class HpackChunkBenchmark extends HpackBenchmark {
         rfc7541AppendixC_3_1_encoded,
         newCtx(110))
       .getOrElse(emptyCtx)
-      .asInstanceOf[ChunkDecoderContext]
-    intermediateCtx.headers = Nil
+      .headerList
+      ._2
     ChunkDecoder
       .decode(
         rfc7541AppendixC_3_2_encoded,
         intermediateCtx)
       .getOrElse(emptyCtx)
       .headerList
+      ._1
   }
 
   @Benchmark
@@ -168,21 +187,22 @@ class HpackChunkBenchmark extends HpackBenchmark {
         rfc7541AppendixC_3_1_encoded,
         newCtx(164))
       .getOrElse(emptyCtx)
-      .asInstanceOf[ChunkDecoderContext]
-    afterFirstCtx.headers = Nil
+      .headerList
+      ._2
     val afterSecondCtx = ChunkDecoder
       .decode(
         rfc7541AppendixC_3_2_encoded,
         afterFirstCtx)
       .getOrElse(emptyCtx)
-      .asInstanceOf[ChunkDecoderContext]
-    afterSecondCtx.headers = Nil
+      .headerList
+      ._2
     ChunkDecoder
       .decode(
         rfc7541AppendixC_3_3_encoded,
         afterSecondCtx)
       .getOrElse(emptyCtx)
       .headerList
+      ._1
   }
 
   override def rfc7541AppendixC_4_1: Seq[HeaderField] =
@@ -192,4 +212,48 @@ class HpackChunkBenchmark extends HpackBenchmark {
         newCtx(57))
       .getOrElse(emptyCtx)
       .headerList
+      ._1
+
+  @Benchmark
+  override def rfc7541AppendixC_4_2: Seq[HeaderField] = {
+    val intermediateCtx = ChunkDecoder
+      .decode(
+        rfc7541AppendixC_4_1_encoded,
+        newCtx(110))
+      .getOrElse(emptyCtx)
+      .headerList
+      ._2
+    ChunkDecoder
+      .decode(
+        rfc7541AppendixC_4_2_encoded,
+        intermediateCtx)
+      .getOrElse(emptyCtx)
+      .headerList
+      ._1
+  }
+
+  @Benchmark
+  override def rfc7541AppendixC_4_3: Seq[HeaderField] = {
+    val afterFirstCtx = ChunkDecoder
+      .decode(
+        rfc7541AppendixC_4_1_encoded,
+        newCtx(164))
+      .getOrElse(emptyCtx)
+      .headerList
+      ._2
+    val afterSecondCtx = ChunkDecoder
+      .decode(
+        rfc7541AppendixC_4_2_encoded,
+        afterFirstCtx)
+      .getOrElse(emptyCtx)
+      .headerList
+      ._2
+    ChunkDecoder
+      .decode(
+        rfc7541AppendixC_4_3_encoded,
+        afterSecondCtx)
+      .getOrElse(emptyCtx)
+      .headerList
+      ._1
+  }
 }

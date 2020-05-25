@@ -35,6 +35,8 @@ private object ChunkDecoder extends Decoder {
     ctx: ChunkDecoderContext
   ): Unit =
     if (ctx.bytes.isDefinedAt(ctx.offset)) {
+      //Console.err.println(s"decodeRecursive($ctx)")
+      val origTable = ctx.table
       val origHeaders = ctx.headers
       val origOffset = ctx.offset
       val head = ctx.bytes.byte(origOffset)
@@ -69,10 +71,11 @@ private object ChunkDecoder extends Decoder {
         )
         ctx.error = Some(error)
       }
-      if (ctx.headers != origHeaders && ctx.offset > origOffset)
+      //Console.err.println(s"Comparing new ${ctx.headers} to old $origHeaders")
+      if (ctx.headers != origHeaders || ctx.table != origTable)
         decodeRecursive(ctx)
-      else if (ctx.error.isEmpty)
-        ctx.offset = origOffset
+      else if (ctx.error.isEmpty)   // not enough input
+        ctx.offset = origOffset     // start over again when we get more
     }
 
   /** See RFC 7541 section 6.1. */
@@ -134,7 +137,7 @@ private object ChunkDecoder extends Decoder {
       val error = either
         .left
         .getOrElse(HpackError.Implementation("Programmer error"))
-      /* Console.err.println(s"name error $err"); */
+      //Console.err.println(s"name error $error")
       if (error.isInstanceOf[HpackError.InvalidInput])
         ctx.error = Some(
           HpackError.InvalidInput(

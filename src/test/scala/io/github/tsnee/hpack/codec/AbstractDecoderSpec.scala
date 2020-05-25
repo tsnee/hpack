@@ -84,16 +84,38 @@ abstract class AbstractDecoderSpec(
         HeaderField("custom-key", "custom-value")
       )
       assert(actual)(equalTo(expected))
-//    } @@ timeout(10.seconds),
-//    test("RFC 7541 Appendix C.4.1") {
-//      val actual = fixture.rfc7541AppendixC_4_1
-//      val expected = List(
-//        HeaderField(":method", "GET"),
-//        HeaderField(":scheme", "http"),
-//        HeaderField(":path", "/"),
-//        HeaderField(":authority", "www.example.com")
-//      )
-//      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.4.1") {
+      val actual = fixture.rfc7541AppendixC_4_1
+      val expected = List(
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "http"),
+        HeaderField(":path", "/"),
+        HeaderField(":authority", "www.example.com")
+      )
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.4.2") {
+      val actual = fixture.rfc7541AppendixC_4_2
+      val expected = List(
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "http"),
+        HeaderField(":path", "/"),
+        HeaderField(":authority", "www.example.com"),
+        HeaderField("cache-control", "no-cache")
+      )
+      assert(actual)(equalTo(expected))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.4.3") {
+      val actual = fixture.rfc7541AppendixC_4_3
+      val expected = List(
+        HeaderField(":method", "GET"),
+        HeaderField(":scheme", "https"),
+        HeaderField(":path", "/index.html"),
+        HeaderField(":authority", "www.example.com"),
+        HeaderField("custom-key", "custom-value")
+      )
+      assert(actual)(equalTo(expected))
     } @@ timeout(10.seconds)
   )
 }

@@ -16,4 +16,6 @@ trait HpackBenchmark {
   def rfc7541AppendixC_3_2: Seq[HeaderField]
   def rfc7541AppendixC_3_3: Seq[HeaderField]
   def rfc7541AppendixC_4_1: Seq[HeaderField]
+  def rfc7541AppendixC_4_2: Seq[HeaderField]
+  def rfc7541AppendixC_4_3: Seq[HeaderField]
 }

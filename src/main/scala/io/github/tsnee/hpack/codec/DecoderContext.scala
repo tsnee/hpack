@@ -6,7 +6,11 @@ import zio.Chunk
 
 /** See RFC 7541 Section 2.2. */
 trait DecoderContext {
-  val headerList: Seq[HeaderField]
+  /** Get the complete list of headers and a new DecoderContext.
+    * The new context will have no headers or accumulated input,
+    * but will contain the same dynamic table.
+    */
+  def headerList: (Seq[HeaderField], DecoderContext)
 }
 
 object DecoderContext {
@@ -17,7 +21,8 @@ object DecoderContext {
 private[codec] class ErrorDecoderContext(
   err: HpackError
 ) extends DecoderContext {
-  override val headerList: Seq[HeaderField] = Seq.empty
+  override def headerList: (Seq[HeaderField], DecoderContext) =
+    (Seq.empty, this)
   val error = Some(err)
 }
 
@@ -26,10 +31,10 @@ object ErrorDecoderContext {
     new ErrorDecoderContext(HpackError.Implementation(message))
 
   def apply(
-             message: String,
-             location: Int,
-             expected: HpackError.Expectation,
-             actual: Byte
+    message: String,
+    location: Int,
+    expected: HpackError.Expectation,
+    actual: Byte
   ): ErrorDecoderContext =
     new ErrorDecoderContext(
       HpackError.InvalidInput(message, location, expected, actual)
@@ -43,7 +48,13 @@ private[codec] class ChunkDecoderContext(
   var headers: List[HeaderField] = Nil,
   var error: Option[HpackError] = None
 ) extends DecoderContext {
-  override lazy val headerList: Seq[HeaderField] = headers.reverse
+  override def headerList: (Seq[HeaderField], DecoderContext) = {
+    assert (bytes.size == offset)  // all input consumed
+    (headers.reverse, new ChunkDecoderContext(table))
+  }
+
+  override def toString: String =
+    s"ChunkDecoderContext($table, ${bytes.map(_.toHexString)}, $offset, $headers, $error)"
 }
 
 private[codec] case class VectorDecoderContext(
@@ -53,5 +64,8 @@ private[codec] case class VectorDecoderContext(
   headers: List[HeaderField] = Nil,
   error: Option[HpackError] = None
 ) extends DecoderContext {
-  override lazy val headerList: Seq[HeaderField] = headers.reverse
+  override def headerList: (Seq[HeaderField], DecoderContext) = {
+    assert (bytes.size == offset)  // all input consumed
+    (headers.reverse, VectorDecoderContext(table))
+  }
 }

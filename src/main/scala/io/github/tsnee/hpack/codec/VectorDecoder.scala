@@ -342,9 +342,10 @@ private object VectorDecoder extends Decoder {
     strSize: Int
   ): Chunk[Byte] = {
     val raw = ctx.bytes.slice(strOffset, strOffset + strSize)
+    val chunk = Chunk.fromIterable(raw)
     if (h)
-      HuffmanCodec.default.decode(raw)
+      HuffmanCodec.default.decode(chunk)
     else
-      Chunk.fromIterable(raw)
+      chunk
   }
 }
