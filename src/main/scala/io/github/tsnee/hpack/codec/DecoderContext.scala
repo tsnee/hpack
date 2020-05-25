@@ -15,7 +15,7 @@ trait DecoderContext {
 
 object DecoderContext {
   def default(dynamicTableSize: Int): DecoderContext =
-    VectorDecoderContext(DynamicTable(dynamicTableSize))
+    ImmutableDecoderContext(DynamicTable(dynamicTableSize))
 }
 
 private[codec] class ErrorDecoderContext(
@@ -23,7 +23,7 @@ private[codec] class ErrorDecoderContext(
 ) extends DecoderContext {
   override def headerList: (Seq[HeaderField], DecoderContext) =
     (Seq.empty, this)
-  val error = Some(err)
+  val error: Option[HpackError] = Some(err)
 }
 
 object ErrorDecoderContext {
@@ -41,7 +41,7 @@ object ErrorDecoderContext {
     )
 }
 
-private[codec] class ChunkDecoderContext(
+private[codec] class MutableDecoderContext(
   var table: DynamicTable,
   var bytes: Chunk[Byte] = Chunk.empty,
   var offset: Int = 0,
@@ -50,14 +50,14 @@ private[codec] class ChunkDecoderContext(
 ) extends DecoderContext {
   override def headerList: (Seq[HeaderField], DecoderContext) = {
     assert (bytes.size == offset)  // all input consumed
-    (headers.reverse, new ChunkDecoderContext(table))
+    (headers.reverse, new MutableDecoderContext(table))
   }
 
   override def toString: String =
-    s"ChunkDecoderContext($table, ${bytes.map(_.toHexString)}, $offset, $headers, $error)"
+    s"MutableDecoderContext($table, ${bytes.map(_.toHexString)}, $offset, $headers, $error)"
 }
 
-private[codec] case class VectorDecoderContext(
+private[codec] case class ImmutableDecoderContext(
   table: DynamicTable,
   bytes: Vector[Byte] = Vector.empty,
   offset: Int = 0,
@@ -66,6 +66,6 @@ private[codec] case class VectorDecoderContext(
 ) extends DecoderContext {
   override def headerList: (Seq[HeaderField], DecoderContext) = {
     assert (bytes.size == offset)  // all input consumed
-    (headers.reverse, VectorDecoderContext(table))
+    (headers.reverse, ImmutableDecoderContext(table))
   }
 }

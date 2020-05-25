@@ -8,7 +8,7 @@ import zio.test._
 
 abstract class AbstractDecoderSpec(
   suiteName: String,
-  fixture: HpackBenchmark
+  fixture: HpackDecoderBenchmark
 ) extends DefaultRunnableSpec {
 
   override def spec = suite(suiteName)(

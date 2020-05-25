@@ -7,15 +7,15 @@ import io.github.tsnee.hpack.huffman.HuffmanCodec
 import io.github.tsnee.hpack.table.{Indexing, StaticTable}
 import zio.Chunk
 
-private object ChunkDecoder extends Decoder {
+private object MutableDecoder extends Decoder {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
   ): Either[HpackError, DecoderContext] =
-    if (ctx.isInstanceOf[ChunkDecoderContext]) {
-      val chunkCtx = ctx.asInstanceOf[ChunkDecoderContext]
+    if (ctx.isInstanceOf[MutableDecoderContext]) {
+      val chunkCtx = ctx.asInstanceOf[MutableDecoderContext]
       chunkCtx.bytes = chunkCtx.bytes ++ chunk
       decodeRecursive(chunkCtx)
       if (chunkCtx.error.isEmpty)
@@ -32,7 +32,7 @@ private object ChunkDecoder extends Decoder {
 
   @tailrec
   private def decodeRecursive(
-    ctx: ChunkDecoderContext
+    ctx: MutableDecoderContext
   ): Unit =
     if (ctx.bytes.isDefinedAt(ctx.offset)) {
       //Console.err.println(s"decodeRecursive($ctx)")
@@ -61,7 +61,7 @@ private object ChunkDecoder extends Decoder {
       else if ((head & 0xF0) == 0x10)
         literalHeaderIndexedName(ctx, 0x0F, Indexing.Never)
       else if ((head & 0xE0) != 0x00)
-        resizeTable(ctx, 0x1F)
+        resizeTable(ctx)
       else {
         val error = HpackError.InvalidInput(
           "Could not parse header block.",
@@ -80,7 +80,7 @@ private object ChunkDecoder extends Decoder {
 
   /** See RFC 7541 section 6.1. */
   private def indexedHeader(
-    ctx: ChunkDecoderContext
+    ctx: MutableDecoderContext
   ): Unit = {
     val either = decodeInt(0x7F, ctx.bytes, ctx.offset)
     if (either.isRight) {
@@ -107,8 +107,8 @@ private object ChunkDecoder extends Decoder {
   }
 
   private def decodeHeaderIndexFailure(
-    ctx: ChunkDecoderContext,
-    chained: HpackError
+                                        ctx: MutableDecoderContext,
+                                        chained: HpackError
   ): Unit =
     ctx.error = Some(
       HpackError.InvalidInput(
@@ -121,8 +121,8 @@ private object ChunkDecoder extends Decoder {
     )
 
   private def literalHeaderNewName(
-    ctx: ChunkDecoderContext,
-    indexing: Indexing
+                                    ctx: MutableDecoderContext,
+                                    indexing: Indexing
   ): Unit = {
     val either = decodeString(ctx)
     if (either.isRight) {
@@ -156,9 +156,9 @@ private object ChunkDecoder extends Decoder {
   }
 
   private def decodeValue(
-    name: Chunk[Byte],
-    ctx: ChunkDecoderContext,
-    indexing: Indexing
+                           name: Chunk[Byte],
+                           ctx: MutableDecoderContext,
+                           indexing: Indexing
   ): Unit = {
     val either = decodeString(ctx)
     if (either.isRight) {
@@ -193,9 +193,9 @@ private object ChunkDecoder extends Decoder {
   }
 
   private def literalHeaderIndexedName(
-    ctx: ChunkDecoderContext,
-    mask: Byte,
-    indexing: Indexing
+                                        ctx: MutableDecoderContext,
+                                        mask: Byte,
+                                        indexing: Indexing
   ): Unit = {
     val either = decodeInt(mask, ctx.bytes, ctx.offset)
     if (either.isRight) {
@@ -225,8 +225,8 @@ private object ChunkDecoder extends Decoder {
   }
 
   private def tableLookupFailure(
-    ctx: ChunkDecoderContext,
-    idx: Int
+                                  ctx: MutableDecoderContext,
+                                  idx: Int
   ): Unit = {
     val maxIdx = StaticTable.numEntries + ctx.table.numEntries
     ctx.error = Some(
@@ -240,10 +240,9 @@ private object ChunkDecoder extends Decoder {
   }
 
   private def resizeTable(
-    ctx: ChunkDecoderContext,
-    mask: Byte
+    ctx: MutableDecoderContext
   ): Unit = {
-    val either = decodeInt(mask, ctx.bytes, ctx.offset)
+    val either = decodeInt(0x1F, ctx.bytes, ctx.offset)
     if (either.isRight) {
       val tuple = either.getOrElse((-1, -1))
       val newSize = tuple._1
@@ -312,7 +311,7 @@ private object ChunkDecoder extends Decoder {
 
   /** See RFC 7541 section 5.2. */
   private[codec] def decodeString(
-    ctx: ChunkDecoderContext
+    ctx: MutableDecoderContext
   ): Either[HpackError, (Chunk[Byte], Int)] =
     decodeHuffman(ctx).flatMap { h =>
       val either = decodeInt(0x7F, ctx.bytes, ctx.offset)
@@ -345,7 +344,7 @@ private object ChunkDecoder extends Decoder {
   }
 
   private[codec] def decodeHuffman(
-    ctx: ChunkDecoderContext
+    ctx: MutableDecoderContext
   ): Either[HpackError, Boolean] =
     if (ctx.bytes.isDefinedAt(ctx.offset))
       Right((ctx.bytes.byte(ctx.offset) & 0x80) != 0x00)
@@ -353,10 +352,10 @@ private object ChunkDecoder extends Decoder {
       Left(HpackError.IncompleteInput(ctx.offset))
 
   private def readString(
-    ctx: ChunkDecoderContext,
-    h: Boolean,
-    strOffset: Int,
-    strSize: Int
+                          ctx: MutableDecoderContext,
+                          h: Boolean,
+                          strOffset: Int,
+                          strSize: Int
   ): Chunk[Byte] = {
     val str = ctx.bytes.slice(strOffset, strOffset + strSize)
     if (h)

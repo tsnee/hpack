@@ -2,7 +2,7 @@ package io.github.tsnee.hpack.codec
 
 import io.github.tsnee.hpack.{HeaderField, HpackError}
 
-trait HpackBenchmark {
+trait HpackDecoderBenchmark {
   def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField]
   def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)]
   def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)]

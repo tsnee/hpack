@@ -7,14 +7,14 @@ import io.github.tsnee.hpack.huffman.HuffmanCodec
 import io.github.tsnee.hpack.table.{Indexing, StaticTable}
 import zio.Chunk
 
-private object VectorDecoder extends Decoder {
+private object ImmutableDecoder extends Decoder {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
   ): Either[HpackError, DecoderContext] = ctx match {
-    case vectorCtx: VectorDecoderContext =>
+    case vectorCtx: ImmutableDecoderContext =>
       val newCtx = decodeRecursive(vectorCtx.copy(bytes = vectorCtx.bytes ++ chunk.toVector))
       if (newCtx.error.isEmpty)
         Right(newCtx)
@@ -29,8 +29,8 @@ private object VectorDecoder extends Decoder {
 
   @tailrec
   private def decodeRecursive(
-    ctx: VectorDecoderContext
-  ): VectorDecoderContext = {
+    ctx: ImmutableDecoderContext
+  ): ImmutableDecoderContext = {
     val headOpt = ctx.bytes.lift(ctx.offset)
     val newCtxOpt =
       if (headOpt.isEmpty)
@@ -71,7 +71,7 @@ private object VectorDecoder extends Decoder {
           Indexing.Never
         )
       else if ((headOpt.get & 0xE0) != 0x00)
-        resizeTable(ctx, 0x1F)
+        resizeTable(ctx)
       else {
         val error = HpackError.InvalidInput(
           "Could not parse header block.",
@@ -96,8 +96,8 @@ private object VectorDecoder extends Decoder {
 
   /** See RFC 7541 section 6.1. */
   private def indexedHeader(
-    ctx: VectorDecoderContext
-  ): Option[VectorDecoderContext] =
+    ctx: ImmutableDecoderContext
+  ): Option[ImmutableDecoderContext] =
     decodeInt(0x7F, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
@@ -116,9 +116,9 @@ private object VectorDecoder extends Decoder {
     }
 
   private def decodeHeaderIndexFailure(
-    ctx: VectorDecoderContext,
-    chained: HpackError
-  ): Option[VectorDecoderContext] =
+                                        ctx: ImmutableDecoderContext,
+                                        chained: HpackError
+  ): Option[ImmutableDecoderContext] =
     Some(
       ctx.copy(
         error = Some(
@@ -134,9 +134,9 @@ private object VectorDecoder extends Decoder {
     )
 
   private def literalHeaderNewName(
-    ctx: VectorDecoderContext,
-    indexing: Indexing
-  ): Option[VectorDecoderContext] =
+                                    ctx: ImmutableDecoderContext,
+                                    indexing: Indexing
+  ): Option[ImmutableDecoderContext] =
     decodeString(ctx) match {
       case Right((name, afterName)) =>
         //Console.err.println(s"name ${new String(name.toArray)}")
@@ -160,10 +160,10 @@ private object VectorDecoder extends Decoder {
   }
 
   private def decodeValue(
-    name: Chunk[Byte],
-    ctx: VectorDecoderContext,
-    indexing: Indexing
-  ): Option[VectorDecoderContext] =
+                           name: Chunk[Byte],
+                           ctx: ImmutableDecoderContext,
+                           indexing: Indexing
+  ): Option[ImmutableDecoderContext] =
     decodeString(ctx) match {
       case Right((value, afterValue)) =>
         //Console.err.println(s"name ${new String(name.toArray)} value ${new String(value.toArray)} indexing $indexing")
@@ -199,10 +199,10 @@ private object VectorDecoder extends Decoder {
     }
 
   private def literalHeaderIndexedName(
-    ctx: VectorDecoderContext,
-    mask: Byte,
-    indexing: Indexing
-  ): Option[VectorDecoderContext] =
+                                        ctx: ImmutableDecoderContext,
+                                        mask: Byte,
+                                        indexing: Indexing
+  ): Option[ImmutableDecoderContext] =
     decodeInt(mask, ctx.bytes, ctx.offset) match {
       case Right((idx, afterIdx)) =>
         ctx.table.lookup(idx) match {
@@ -217,9 +217,9 @@ private object VectorDecoder extends Decoder {
     }
 
   private def tableLookupFailure(
-    ctx: VectorDecoderContext,
-    idx: Int
-  ): Option[VectorDecoderContext] = {
+                                  ctx: ImmutableDecoderContext,
+                                  idx: Int
+  ): Option[ImmutableDecoderContext] = {
     val maxIdx = StaticTable.numEntries + ctx.table.numEntries
     Some(
       ctx.copy(
@@ -236,10 +236,9 @@ private object VectorDecoder extends Decoder {
   }
 
   private def resizeTable(
-    ctx: VectorDecoderContext,
-    mask: Byte
-  ): Option[VectorDecoderContext] =
-    decodeInt(mask, ctx.bytes, ctx.offset) match {
+    ctx: ImmutableDecoderContext,
+  ): Option[ImmutableDecoderContext] =
+    decodeInt(0x1F, ctx.bytes, ctx.offset) match {
       case Right((newSize, newOffset)) => Some(
         ctx.copy(
           table = ctx.table.resize(newSize),
@@ -305,7 +304,7 @@ private object VectorDecoder extends Decoder {
 
   /** See RFC 7541 section 5.2. */
   private[codec] def decodeString(
-    ctx: VectorDecoderContext
+    ctx: ImmutableDecoderContext
   ): Either[HpackError, (Chunk[Byte], Int)] =
     decodeHuffman(ctx).flatMap { h =>
       decodeInt(0x7F, ctx.bytes, ctx.offset) match {
@@ -328,7 +327,7 @@ private object VectorDecoder extends Decoder {
   }
 
   private[codec] def decodeHuffman(
-    ctx: VectorDecoderContext
+    ctx: ImmutableDecoderContext
   ): Either[HpackError, Boolean] =
     ctx.bytes.lift(ctx.offset) match {
       case Some(h) => Right((h & 0x80) != 0x00)
@@ -336,10 +335,10 @@ private object VectorDecoder extends Decoder {
     }
 
   private def readString(
-    ctx: VectorDecoderContext,
-    h: Boolean,
-    strOffset: Int,
-    strSize: Int
+                          ctx: ImmutableDecoderContext,
+                          h: Boolean,
+                          strOffset: Int,
+                          strSize: Int
   ): Chunk[Byte] = {
     val raw = ctx.bytes.slice(strOffset, strOffset + strSize)
     val chunk = Chunk.fromIterable(raw)

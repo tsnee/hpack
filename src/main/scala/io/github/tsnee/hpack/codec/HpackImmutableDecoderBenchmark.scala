@@ -6,10 +6,10 @@ import io.github.tsnee.hpack.table.DynamicTable
 import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
-object HpackVectorBenchmark {
+object HpackImmutableDecoderBenchmark {
   implicit def forConvenience(i: Int): Byte = i.toByte
 
-  val emptyCtx = VectorDecoderContext(DynamicTable(1024))
+  val emptyCtx: ImmutableDecoderContext = ImmutableDecoderContext(DynamicTable(1024))
   val rfc7541AppendixC_1_1_encoded: Vector[Byte] =
     Vector(0x0A)
   val rfc7541AppendixC_1_2_encoded: Vector[Byte] =
@@ -68,15 +68,15 @@ object HpackVectorBenchmark {
     )
 }
 
-class HpackVectorBenchmark extends HpackBenchmark {
-  import HpackVectorBenchmark._
+class HpackImmutableDecoderBenchmark extends HpackDecoderBenchmark {
+  import HpackImmutableDecoderBenchmark._
 
-  def newCtx(tableSize: Int) =
-    VectorDecoderContext(DynamicTable(tableSize))
+  def newCtx(tableSize: Int): ImmutableDecoderContext =
+    ImmutableDecoderContext(DynamicTable(tableSize))
 
   @Benchmark
   override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(Chunk.empty, emptyCtx)
       .getOrElse(emptyCtx)
       .headerList
@@ -84,19 +84,19 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)] =
-    VectorDecoder.decodeInt(0x1F, rfc7541AppendixC_1_1_encoded, 0)
+    ImmutableDecoder.decodeInt(0x1F, rfc7541AppendixC_1_1_encoded, 0)
 
   @Benchmark
   override def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)] =
-    VectorDecoder.decodeInt(0x1F, rfc7541AppendixC_1_2_encoded, 0)
+    ImmutableDecoder.decodeInt(0x1F, rfc7541AppendixC_1_2_encoded, 0)
 
   @Benchmark
   override def rfc7541AppendixC_1_3: Either[HpackError, (Int, Int)] =
-    VectorDecoder.decodeInt(0xFF, rfc7541AppendixC_1_3_encoded, 0)
+    ImmutableDecoder.decodeInt(0xFF, rfc7541AppendixC_1_3_encoded, 0)
 
   @Benchmark
   override def rfc7541AppendixC_2_1_in_one_chunk: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_1_encoded,
         newCtx(1024))
@@ -106,12 +106,12 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_2_1_in_two_chunks: Seq[HeaderField] = {
-    val intermediateCtx = VectorDecoder
+    val intermediateCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_1_encoded.take(16),
         newCtx(1024))
       .getOrElse(emptyCtx)
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_1_encoded.drop(16),
         intermediateCtx)
@@ -122,7 +122,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_2_2: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_2_encoded,
         newCtx(1024))
@@ -132,7 +132,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_2_3: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_3_encoded,
         newCtx(1024))
@@ -142,7 +142,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_2_4: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_2_4_encoded,
         newCtx(1024))
@@ -152,7 +152,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_3_1: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
         newCtx(57))
@@ -162,14 +162,14 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_3_2: Seq[HeaderField] = {
-    val intermediateCtx = VectorDecoder
+    val intermediateCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
         newCtx(110))
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_2_encoded,
         intermediateCtx)
@@ -180,21 +180,21 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_3_3: Seq[HeaderField] = {
-    val afterFirstCtx = VectorDecoder
+    val afterFirstCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_1_encoded,
         newCtx(164))
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    val afterSecondCtx = VectorDecoder
+    val afterSecondCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_2_encoded,
         afterFirstCtx)
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_3_3_encoded,
         afterSecondCtx)
@@ -205,7 +205,7 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_4_1: Seq[HeaderField] =
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_1_encoded,
         newCtx(57))
@@ -215,14 +215,14 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_4_2: Seq[HeaderField] = {
-    val intermediateCtx = VectorDecoder
+    val intermediateCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_1_encoded,
         newCtx(110))
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_2_encoded,
         intermediateCtx)
@@ -233,21 +233,21 @@ class HpackVectorBenchmark extends HpackBenchmark {
 
   @Benchmark
   override def rfc7541AppendixC_4_3: Seq[HeaderField] = {
-    val afterFirstCtx = VectorDecoder
+    val afterFirstCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_1_encoded,
         newCtx(164))
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    val afterSecondCtx = VectorDecoder
+    val afterSecondCtx = ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_2_encoded,
         afterFirstCtx)
       .getOrElse(emptyCtx)
       .headerList
       ._2
-    VectorDecoder
+    ImmutableDecoder
       .decode(
         rfc7541AppendixC_4_3_encoded,
         afterSecondCtx)

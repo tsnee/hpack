@@ -12,5 +12,5 @@ trait Decoder {
 }
 
 object Decoder {
-  val default: Decoder = ChunkDecoder
+  val default: Decoder = MutableDecoder
 }
