@@ -7,14 +7,7 @@ import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
 class ImmutableEncoderBenchmark extends EncoderBenchmark {
-  def newCtx(tableSize: Int, compress: Boolean): ImmutableEncoderContext =
-    ImmutableEncoderContext(
-      table = DynamicTable(tableSize),
-      compressedByDefault = compress
-    )
-
-  val compress = true
-  val doNotCompress = false
+  import ImmutableEncoderBenchmark._
 
   @Benchmark
   override def rfc7541AppendixC_1_1: Chunk[Byte] =
@@ -80,4 +73,15 @@ class ImmutableEncoderBenchmark extends EncoderBenchmark {
       .headerBlock
       ._1
   }
+}
+
+object ImmutableEncoderBenchmark {
+  def newCtx(tableSize: Int, compress: Boolean): ImmutableEncoderContext =
+    ImmutableEncoderContext(
+      table = DynamicTable(tableSize),
+      compressedByDefault = compress
+    )
+
+  val compress = true
+  val doNotCompress = false
 }

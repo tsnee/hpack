@@ -8,10 +8,7 @@ import org.openjdk.jmh.annotations.Benchmark
 import zio.Chunk
 
 class ImmutableDecoderBenchmark extends DecoderBenchmark {
-  val emptyCtx: ImmutableDecoderContext = ImmutableDecoderContext(DynamicTable(1024))
-
-  def newCtx(tableSize: Int): ImmutableDecoderContext =
-    ImmutableDecoderContext(DynamicTable(tableSize))
+  import ImmutableDecoderBenchmark._
 
   @Benchmark
   override def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField] =
@@ -194,4 +191,11 @@ class ImmutableDecoderBenchmark extends DecoderBenchmark {
       .headerList
       ._1
   }
+}
+
+object ImmutableDecoderBenchmark {
+  val emptyCtx: ImmutableDecoderContext = ImmutableDecoderContext(DynamicTable(1024))
+
+  def newCtx(tableSize: Int): ImmutableDecoderContext =
+    ImmutableDecoderContext(DynamicTable(tableSize))
 }
