@@ -22,15 +22,15 @@ class MutableDecoderBenchmark extends DecoderBenchmark {
       ._1
 
   @Benchmark
-  override def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)] =
+  override def rfc7541AppendixC_1_1: Either[DecoderError, (Int, Int)] =
     MutableDecoder.decodeInt(0x1F, rfc7541AppendixC_1_1_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)] =
+  override def rfc7541AppendixC_1_2: Either[DecoderError, (Int, Int)] =
     MutableDecoder.decodeInt(0x1F, rfc7541AppendixC_1_2_encoded, 0)
 
   @Benchmark
-  override def rfc7541AppendixC_1_3: Either[HpackError, (Int, Int)] =
+  override def rfc7541AppendixC_1_3: Either[DecoderError, (Int, Int)] =
     MutableDecoder.decodeInt(0xFF, rfc7541AppendixC_1_3_encoded, 0)
 
   @Benchmark

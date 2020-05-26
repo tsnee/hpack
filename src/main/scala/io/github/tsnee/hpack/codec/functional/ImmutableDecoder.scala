@@ -13,7 +13,7 @@ private[codec] case class ImmutableDecoderContext(
   bytes: Chunk[Byte] = Chunk.empty,
   offset: Int = 0,
   headers: List[HeaderField] = Nil,
-  error: Option[HpackError] = None
+  error: Option[DecoderError] = None
 ) extends DecoderContext {
   override def headerList: (Seq[HeaderField], DecoderContext) = {
     assert(bytes.size == offset)  // all input consumed
@@ -25,7 +25,7 @@ private[codec] object ImmutableDecoder extends Decoder {
   override def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): Either[HpackError, DecoderContext] = ctx match {
+  ): Either[DecoderError, DecoderContext] = ctx match {
     case chunkCtx: ImmutableDecoderContext =>
       val newCtx = decodeRecursive(chunkCtx.copy(bytes = chunkCtx.bytes ++ chunk))
       if (newCtx.error.isEmpty)
@@ -33,7 +33,7 @@ private[codec] object ImmutableDecoder extends Decoder {
       else
         Left(newCtx.error.get)
     case _ => Left(
-      HpackError.Implementation(
+      DecoderError.Implementation(
         "This Decoder implementation does not work with this type of DecoderContext."
       )
     )
@@ -85,10 +85,10 @@ private[codec] object ImmutableDecoder extends Decoder {
       else if ((headOpt.get & 0xE0) != 0x00)
         resizeTable(ctx)
       else {
-        val error = HpackError.InvalidInput(
+        val error = DecoderError.InvalidInput(
           "Could not parse header block.",
           ctx.offset,
-          HpackError.Expectation.FirstHeaderByte,
+          DecoderError.Expectation.FirstHeaderByte,
           headOpt.get
         )
         Some(ctx.copy(error = Some(error)))
@@ -122,22 +122,22 @@ private[codec] object ImmutableDecoder extends Decoder {
           )
           case None => tableLookupFailure(ctx, idx)
         }
-      case Left(err: HpackError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: HpackError.IncompleteInput) => None
+      case Left(err: DecoderError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
+      case Left(err: DecoderError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: DecoderError.IncompleteInput) => None
     }
 
   private def decodeHeaderIndexFailure(
                                         ctx: ImmutableDecoderContext,
-                                        chained: HpackError
+                                        chained: DecoderError
   ): Option[ImmutableDecoderContext] =
     Some(
       ctx.copy(
         error = Some(
-          HpackError.InvalidInput(
+          DecoderError.InvalidInput(
             "Cannot decode header index",
             ctx.offset,
-            HpackError.Expectation.HeaderIndex,
+            DecoderError.Expectation.HeaderIndex,
             ctx.bytes(ctx.offset),
             Some(chained)
           )
@@ -153,22 +153,22 @@ private[codec] object ImmutableDecoder extends Decoder {
       case Right((name, afterName)) =>
         //Console.err.println(s"name ${new String(name.toArray)}")
         decodeValue(name, ctx.copy(offset = afterName), indexing)
-      case Left(err: HpackError.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
+      case Left(err: DecoderError.InvalidInput) => /* Console.err.println(s"name error $err"); */ Some(
         ctx.copy(
           error = Some(
-            HpackError.InvalidInput(
+            DecoderError.InvalidInput(
               "Cannot decode header name starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              HpackError.Expectation.HeaderName,
+              DecoderError.Expectation.HeaderName,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: HpackError.IncompleteInput) => None
+      case Left(err: DecoderError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: DecoderError.IncompleteInput) => None
   }
 
   private def decodeValue(
@@ -188,26 +188,26 @@ private[codec] object ImmutableDecoder extends Decoder {
             table = ctx.table.store(headerField, indexing)
           )
         )
-      case Left(err: HpackError.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
+      case Left(err: DecoderError.InvalidInput) => /* Console.err.println(s"value error $err"); */ Some(
         ctx.copy(
           error = Some(
-            HpackError.InvalidInput(
+            DecoderError.InvalidInput(
               "Cannot decode header value starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              HpackError.Expectation.HeaderValue,
+              DecoderError.Expectation.HeaderValue,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: HpackError.Implementation) => Some(
+      case Left(err: DecoderError.Implementation) => Some(
         ctx.copy(
           error = Some(err)
         )
       )
-      case Left(_: HpackError.IncompleteInput) => None
+      case Left(_: DecoderError.IncompleteInput) => None
     }
 
   private def literalHeaderIndexedName(
@@ -223,9 +223,9 @@ private[codec] object ImmutableDecoder extends Decoder {
             decodeValue(name, ctx.copy(offset = afterIdx), indexing)
           case None => tableLookupFailure(ctx, idx)
         }
-      case Left(err: HpackError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
-      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: HpackError.IncompleteInput) => None
+      case Left(err: DecoderError.InvalidInput) => decodeHeaderIndexFailure(ctx, err)
+      case Left(err: DecoderError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: DecoderError.IncompleteInput) => None
     }
 
   private def tableLookupFailure(
@@ -236,10 +236,10 @@ private[codec] object ImmutableDecoder extends Decoder {
     Some(
       ctx.copy(
         error = Some(
-          HpackError.InvalidInput(
+          DecoderError.InvalidInput(
             s"Invalid header index $idx is not between 1 and $maxIdx.",
             ctx.offset,
-            HpackError.Expectation.HeaderIndex,
+            DecoderError.Expectation.HeaderIndex,
             ctx.bytes(ctx.offset)
           )
         )
@@ -258,22 +258,22 @@ private[codec] object ImmutableDecoder extends Decoder {
           offset = 0
         )
       )
-      case Left(err: HpackError.InvalidInput) => Some(
+      case Left(err: DecoderError.InvalidInput) => Some(
         ctx.copy(
           error = Some(
-            HpackError.InvalidInput(
+            DecoderError.InvalidInput(
               "Cannot decode table size parameter starting with " +
                 ctx.bytes(ctx.offset) + ".",
               ctx.offset,
-              HpackError.Expectation.NonZeroLength,
+              DecoderError.Expectation.NonZeroLength,
               ctx.bytes(ctx.offset),
               Some(err)
             )
           )
         )
       )
-      case Left(err: HpackError.Implementation) => Some(ctx.copy(error = Some(err)))
-      case Left(_: HpackError.IncompleteInput) => None
+      case Left(err: DecoderError.Implementation) => Some(ctx.copy(error = Some(err)))
+      case Left(_: DecoderError.IncompleteInput) => None
     }
 
   /** See RFC 7541 section 5.1. */
@@ -281,7 +281,7 @@ private[codec] object ImmutableDecoder extends Decoder {
     mask: Byte,
     bytes: Chunk[Byte],
     offset: Int
-  ): Either[HpackError, (Int, Int)] =
+  ): Either[DecoderError, (Int, Int)] =
     if (bytes.isDefinedAt(offset)) {
       val value = bytes(offset) & mask
       if (value != mask)  // i.e. not all 1s
@@ -290,7 +290,7 @@ private[codec] object ImmutableDecoder extends Decoder {
         decodeIntRecursive(value, bytes, offset + 1, 0)
     }
     else
-      Left(HpackError.IncompleteInput(offset))
+      Left(DecoderError.IncompleteInput(offset))
 
   @tailrec
   private def decodeIntRecursive(
@@ -298,13 +298,13 @@ private[codec] object ImmutableDecoder extends Decoder {
     bytes: Chunk[Byte],
     offset: Int,
     m: Int
-  ): Either[HpackError, (Int, Int)] =
+  ): Either[DecoderError, (Int, Int)] =
     if (!bytes.isDefinedAt(offset)) {
       //Console.err.println(s"decodeIntRecursive($value, $bytes, $offset, $m)")
-      Left(HpackError.IncompleteInput(offset))
+      Left(DecoderError.IncompleteInput(offset))
     }
     else if (m > 21)
-      Left(HpackError.Implementation("Cannot handle a header size this big."))
+      Left(DecoderError.Implementation("Cannot handle a header size this big."))
     else {
       val b = bytes(offset)
       val i = value + ((b & 0x7F) << m)
@@ -317,19 +317,19 @@ private[codec] object ImmutableDecoder extends Decoder {
   /** See RFC 7541 section 5.2. */
   private[codec] def decodeString(
     ctx: ImmutableDecoderContext
-  ): Either[HpackError, (Chunk[Byte], Int)] =
+  ): Either[DecoderError, (Chunk[Byte], Int)] =
     decodeHuffman(ctx).flatMap { h =>
       decodeInt(0x7F, ctx.bytes, ctx.offset) match {
         case Right((strSize, strOffset)) =>
           if (strOffset + strSize > ctx.bytes.size)
-            Left(HpackError.IncompleteInput(strOffset))
+            Left(DecoderError.IncompleteInput(strOffset))
           else
             Right((readString(ctx, h, strOffset, strSize), strOffset + strSize))
-        case Left(err: HpackError.InvalidInput) => Left(
-          HpackError.InvalidInput(
+        case Left(err: DecoderError.InvalidInput) => Left(
+          DecoderError.InvalidInput(
             "Cannot decode string length.",
             ctx.offset,
-            HpackError.Expectation.NonZeroLength,
+            DecoderError.Expectation.NonZeroLength,
             ctx.bytes(ctx.offset),
             Some(err)
           )
@@ -340,10 +340,10 @@ private[codec] object ImmutableDecoder extends Decoder {
 
   private[codec] def decodeHuffman(
     ctx: ImmutableDecoderContext
-  ): Either[HpackError, Boolean] =
+  ): Either[DecoderError, Boolean] =
     ctx.bytes.lift(ctx.offset) match {
       case Some(h) => Right((h & 0x80) != 0x00)
-      case None => Left(HpackError.IncompleteInput(ctx.offset))
+      case None => Left(DecoderError.IncompleteInput(ctx.offset))
     }
 
   private def readString(

@@ -5,9 +5,9 @@ import zio.Chunk
 
 trait DecoderBenchmark {
   def decodingAnEmptyHeaderBlockYieldsAnEmptyHeaderList: Seq[HeaderField]
-  def rfc7541AppendixC_1_1: Either[HpackError, (Int, Int)]
-  def rfc7541AppendixC_1_2: Either[HpackError, (Int, Int)]
-  def rfc7541AppendixC_1_3: Either[HpackError, (Int, Int)]
+  def rfc7541AppendixC_1_1: Either[DecoderError, (Int, Int)]
+  def rfc7541AppendixC_1_2: Either[DecoderError, (Int, Int)]
+  def rfc7541AppendixC_1_3: Either[DecoderError, (Int, Int)]
   def rfc7541AppendixC_2_1_in_one_chunk: Seq[HeaderField]
   def rfc7541AppendixC_2_1_in_two_chunks: Seq[HeaderField]
   def rfc7541AppendixC_2_2: Seq[HeaderField]

@@ -14,14 +14,17 @@ private[table] abstract class IndexTable(backingStore: Chunk[HeaderField]) {
 
   @tailrec
   private def findRecursive(field: HeaderField, prev: Match, idx: Int): Match = {
-    if (backingStore.lengthCompare(idx) <= 0) {
+    if (backingStore.lengthCompare(idx) >= 0) {
       val current = backingStore(idx - 1)
-      if (current.name == field.name)
+      //Console.err.println(s"Comparing $field to $current")
+      if (current.name == field.name) {
         if (current.value == field.value)
           Match.Full(idx)
-        else
+        else if (prev == Match.NotFound)
           findRecursive(field, Match.Partial(idx), idx + 1)
-      else
+        else
+          findRecursive(field, prev, idx + 1)
+      } else
         findRecursive(field, prev, idx + 1)
     }
     else

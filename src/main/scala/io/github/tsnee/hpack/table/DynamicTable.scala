@@ -20,10 +20,26 @@ class DynamicTable private (
       backingStore.lift(adjustedIdx - 1)
   }
 
+  override def find(hf: HeaderField): Match = StaticTable.find(hf) match {
+    case m: Match.Full => m
+    case p: Match.Partial => super.find(hf) match {
+      case Match.Full(idx) => Match.Full(StaticTable.numEntries + idx)
+      case _ => p
+    }
+    case Match.NotFound => super.find(hf) match {
+      case Match.Full(idx) => Match.Full(StaticTable.numEntries + idx)
+      case Match.Partial(idx) => Match.Partial(StaticTable.numEntries + idx)
+      case Match.NotFound => Match.NotFound
+    }
+  }
+
   def store(headerField: HeaderField, indexing: Indexing): DynamicTable =
     indexing match {
-      case Indexing.With =>
-        shrink(maxSize, backingStore.prepended(headerField), size + headerField.size)
+      case Indexing.With => shrink(
+        maxSize,
+        backingStore.prepended(headerField),
+        size + headerField.size
+      )
       case _ => this
     }
 

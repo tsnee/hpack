@@ -1,6 +1,6 @@
 package io.github.tsnee.hpack.codec
 
-import io.github.tsnee.hpack.HpackError
+import io.github.tsnee.hpack.DecoderError
 import io.github.tsnee.hpack.codec.optimized.MutableDecoder
 import zio.Chunk
 
@@ -9,7 +9,7 @@ trait Decoder {
   def decode(
     chunk: Chunk[Byte],
     ctx: DecoderContext
-  ): Either[HpackError, DecoderContext]
+  ): Either[DecoderError, DecoderContext]
 }
 
 object Decoder {

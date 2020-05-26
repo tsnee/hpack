@@ -1,8 +1,8 @@
 package io.github.tsnee.hpack
 
-sealed trait HpackError
+sealed trait DecoderError
 
-object HpackError {
+object DecoderError {
   sealed trait Expectation
   object Expectation {
     case object FirstHeaderByte extends Expectation
@@ -12,15 +12,15 @@ object HpackError {
     case object HeaderValue extends Expectation
   }
 
-  case class Implementation(message: String) extends HpackError
+  case class Implementation(message: String) extends DecoderError
 
   case class InvalidInput(
     message: String,
     location: Int,
     expected: Expectation,
     actual: Byte,
-    cause: Option[HpackError] = None
-  ) extends HpackError
+    cause: Option[DecoderError] = None
+  ) extends DecoderError
 
-  case class IncompleteInput(location: Int) extends HpackError
+  case class IncompleteInput(location: Int) extends DecoderError
 }

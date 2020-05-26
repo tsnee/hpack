@@ -1,6 +1,6 @@
 package io.github.tsnee.hpack.codec
 
-import io.github.tsnee.hpack.{HpackError, HeaderField}
+import io.github.tsnee.hpack.{DecoderError, HeaderField}
 import io.github.tsnee.hpack.table.DynamicTable
 import io.github.tsnee.hpack.codec.functional.ImmutableDecoderContext
 
@@ -19,24 +19,24 @@ object DecoderContext {
 }
 
 private[codec] class ErrorDecoderContext(
-  err: HpackError
+  err: DecoderError
 ) extends DecoderContext {
   override def headerList: (Seq[HeaderField], DecoderContext) =
     (Seq.empty, this)
-  val error: Option[HpackError] = Some(err)
+  val error: Option[DecoderError] = Some(err)
 }
 
 object ErrorDecoderContext {
   def apply(message: String): ErrorDecoderContext =
-    new ErrorDecoderContext(HpackError.Implementation(message))
+    new ErrorDecoderContext(DecoderError.Implementation(message))
 
   def apply(
-    message: String,
-    location: Int,
-    expected: HpackError.Expectation,
-    actual: Byte
+             message: String,
+             location: Int,
+             expected: DecoderError.Expectation,
+             actual: Byte
   ): ErrorDecoderContext =
     new ErrorDecoderContext(
-      HpackError.InvalidInput(message, location, expected, actual)
+      DecoderError.InvalidInput(message, location, expected, actual)
     )
 }
