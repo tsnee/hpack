@@ -63,7 +63,16 @@ object HuffmanTree extends HuffmanCodec {
   override def encode(input: Chunk[Byte]): Chunk[Byte] =
     compact(encode(input.toList))
 
-  private def compact(xs: List[Bit]): Chunk[Byte] = ???
+  private def compact(bitList: List[Bit]): Chunk[Byte] = {
+    val bits = Chunk.fromIterable(bitList)
+    val padLen = (8 - (bits.length % 8)) % 8
+    val padded = bits ++ Chunk.fill(padLen)(0x01)
+    val octets = padded.grouped(8)
+    val ints = octets.map(_.foldLeft(0x00) { (acc, bit) =>
+      (acc << 1) | bit
+    })
+    Chunk.fromArray(ints.map(_.toByte).toArray)
+  }
 
   /** Encodes `text` using the code tree `tree`
     * into a sequence of bits.

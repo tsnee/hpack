@@ -35,6 +35,18 @@ class AbstractEncoderSpec(
     test("RFC 7541 Appendix C.5.3") {
       val actual = encoderFunctions.rfc7541AppendixC_5_3
       assert(actual)(equalTo(Fixtures.rfc7541AppendixC_5_3_encoded))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.6.1") {
+      val actual = encoderFunctions.rfc7541AppendixC_6_1
+      assert(actual)(equalTo(Fixtures.rfc7541AppendixC_6_1_encoded))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.6.2") {
+      val actual = encoderFunctions.rfc7541AppendixC_6_2
+      assert(actual)(equalTo(Fixtures.rfc7541AppendixC_6_2_encoded))
+    } @@ timeout(10.seconds),
+    test("RFC 7541 Appendix C.6.3") {
+      val actual = encoderFunctions.rfc7541AppendixC_6_3
+      assert(actual)(equalTo(Fixtures.rfc7541AppendixC_6_3_encoded))
     } @@ timeout(10.seconds)
   )
 }

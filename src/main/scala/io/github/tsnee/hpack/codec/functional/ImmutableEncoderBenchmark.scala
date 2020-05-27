@@ -73,6 +73,59 @@ class ImmutableEncoderBenchmark extends EncoderBenchmark {
       .headerBlock
       ._1
   }
+
+  @Benchmark
+  override def rfc7541AppendixC_6_1: Chunk[Byte] =
+    ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_1_decoded,
+        newCtx(256, compress)
+      )
+      .headerBlock
+      ._1
+
+  @Benchmark
+  override def rfc7541AppendixC_6_2: Chunk[Byte] = {
+    val afterFirstCtx = ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_1_decoded,
+        newCtx(256, compress)
+      )
+      .headerBlock
+      ._2
+    ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_2_decoded,
+        afterFirstCtx
+      )
+      .headerBlock
+      ._1
+  }
+
+  @Benchmark
+  override def rfc7541AppendixC_6_3: Chunk[Byte] = {
+    val afterFirstCtx = ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_1_decoded,
+        newCtx(256, compress)
+      )
+      .headerBlock
+      ._2
+    val afterSecondCtx = ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_2_decoded,
+        afterFirstCtx
+      )
+      .headerBlock
+      ._2
+    ImmutableEncoder
+      .encode(
+        rfc7541AppendixC_6_3_decoded,
+        afterSecondCtx
+      )
+      .headerBlock
+      ._1
+  }
 }
 
 object ImmutableEncoderBenchmark {

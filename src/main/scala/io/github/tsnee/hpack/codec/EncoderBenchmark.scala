@@ -9,4 +9,7 @@ trait EncoderBenchmark {
   def rfc7541AppendixC_5_1: Chunk[Byte]
   def rfc7541AppendixC_5_2: Chunk[Byte]
   def rfc7541AppendixC_5_3: Chunk[Byte]
+  def rfc7541AppendixC_6_1: Chunk[Byte]
+  def rfc7541AppendixC_6_2: Chunk[Byte]
+  def rfc7541AppendixC_6_3: Chunk[Byte]
 }
