@@ -1,7 +1,7 @@
 # hpack
 Scala implementation of [RFC 7541](https://tools.ietf.org/html/rfc7541).
 hpack is feature-complete, but can be further optimized. See
-[Future Work](#Future Work).
+Future Work.
 
 ## Usage
 Consumers of hpack use immutable objects implementing one of six
