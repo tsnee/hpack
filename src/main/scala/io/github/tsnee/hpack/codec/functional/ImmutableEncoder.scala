@@ -39,7 +39,7 @@ object ImmutableEncoderContext {
     ImmutableEncoderContext(DynamicTable(tableSize))
 }
 
-private object ImmutableEncoder extends Encoder {
+private[hpack] object ImmutableEncoder extends Encoder {
   override def encode(
     headerList: Seq[HeaderField],
     ctx: EncoderContext
@@ -79,7 +79,8 @@ private object ImmutableEncoder extends Encoder {
     else
       encodeIntRecursive(
         remainder >>> 7,
-        (0x80 | (0x0000007F & remainder)) :: encoded)
+        (0x80 | (0x0000007F & remainder)) :: encoded
+      )
   }
 
   private def encodeOneField(

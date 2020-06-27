@@ -1,7 +1,7 @@
 package io.github.tsnee.hpack.codec
 
 import io.github.tsnee.hpack.DecoderError
-import io.github.tsnee.hpack.codec.optimized.MutableDecoder
+import io.github.tsnee.hpack.codec.functional.ImmutableDecoder
 import zio.Chunk
 
 /** See RFC 7541 Section 3. */
@@ -13,5 +13,5 @@ trait Decoder {
 }
 
 object Decoder {
-  val default: Decoder = MutableDecoder
+  val default: Decoder = ImmutableDecoder
 }
